@@ -313,4 +313,6 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# my venc
+comp9323/
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,linux,visualstudiocode,pycharm,python
