@@ -3,7 +3,7 @@
 
 from sqlalchemy import Column, String, Integer, Date, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
-from database import Base
+from models.base import Base
 
 class Meetings(Base):
     __tablename__ = 'Meetings'

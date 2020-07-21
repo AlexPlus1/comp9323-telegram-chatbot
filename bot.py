@@ -1,60 +1,86 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""Simple Bot to reply to Telegram messages.
-
-This is built on the API wrapper, see echobot2.py to see the same example built
-on the telegram.ext bot framework.
-This program is dedicated to the public domain under the CC0 license.
-"""
+import argparse
 import logging
 import os
-import telegram
-from telegram.error import NetworkError, Unauthorized
-from time import sleep
+
 from dotenv import load_dotenv
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import (
+    Updater,
+    CommandHandler,
+    MessageHandler,
+    Filters,
+    ConversationHandler,
+)
+
+from models import *
 
 load_dotenv()
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+DATABASE = Database()
 
-update_id = None
+
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+LOGGER = logging.getLogger(__name__)
+
+
+def init_db():
+    DATABASE.create_table()
+    print("Database has been initialised")
 
 
 def main():
-    """Run the bot."""
-    global update_id
-    # Telegram Bot Authorization Token
-    bot = telegram.Bot(TELEGRAM_TOKEN)
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(TOKEN, use_context=True)
 
-    # get the first pending update_id, this is so we can skip over it in case
-    # we get an "Unauthorized" exception.
-    try:
-        update_id = bot.get_updates()[0].update_id
-    except IndexError:
-        update_id = None
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
 
-    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    # Start the Bot
+    updater.start_polling()
+    LOGGER.info("Bot started polling")
 
-    while True:
-        try:
-            echo(bot)
-        except NetworkError:
-            sleep(1)
-        except Unauthorized:
-            # The user has removed or blocked the bot.
-            update_id += 1
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
 
 
-def echo(bot):
-    """Echo the message the user sent."""
-    global update_id
-    # Request updates after the last update_id
-    for update in bot.get_updates(offset=update_id, timeout=10):
-        update_id = update.update_id + 1
+def start(update, context):
+    update.message.reply_text(
+        "Hi! My name is Chatbot. Add me into a group chat to get started"
+    )
 
-        if update.message:  # your bot can receive updates without messages
-            # Reply to the message
-            update.message.reply_text(update.message.text)
+
+def greet_group(update, context):
+    message = update.effective_message
+    for user in message.new_chat_members:
+        if user.id == context.bot.id:
+            chat_id = message.chat.id
+            team = DATABASE.get_team(chat_id)
+
+            if team is None:
+                team = Teams(team_id=chat_id)
+                DATABASE.insert(team)
+
+            context.bot.send_message(
+                chat_id,
+                "Hello everyone! I'm your project helper and I've initialised a team for this group chat.",
+            )
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d", "--init_db", action="store_true", help="Initialise database"
+    )
+    args = parser.parse_args()
+
+    if args.init_db:
+        init_db()
+    else:
+        main()

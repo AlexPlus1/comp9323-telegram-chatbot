@@ -5,7 +5,7 @@
 
 from sqlalchemy import Column, String, Integer, Date, ForeignKey
 from sqlalchemy.orm import relationship
-from database import Base
+from models.base import Base
 
 class Tasks(Base):
     __tablename__ = 'Tasks'
