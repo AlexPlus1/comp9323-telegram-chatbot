@@ -4,7 +4,15 @@ import dialogflow
 import consts
 
 
-def get_intent(session_id, text):
+class IntentResult:
+    def __init__(self, intent, params, all_params_present, fulfill_text):
+        self.intent = intent
+        self.params = params
+        self.all_params_present = all_params_present
+        self.fulfill_text = fulfill_text
+
+
+def get_intent(session_id, text) -> IntentResult:
     """Get intent from a given text
 
     Args:
@@ -36,12 +44,12 @@ def get_intent(session_id, text):
     if intent == consts.SCHEDULE_MEETING:
         params = get_schedule_meeting_params(query_result.parameters)
 
-    result = {
-        "intent": intent,
-        "params": params,
-        "all_params_present": query_result.all_required_params_present,
-        "fulfill_text": query_result.fulfillment_text,
-    }
+    result = IntentResult(
+        intent,
+        params,
+        query_result.all_required_params_present,
+        query_result.fulfillment_text,
+    )
 
     return result
 
