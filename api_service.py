@@ -1,4 +1,4 @@
-import datetime as dt
+import arrow
 import dialogflow
 
 import consts
@@ -63,15 +63,15 @@ def get_schedule_meeting_params(params):
     Returns:
         dict: the dictionary of parameters
             {
-                "datetime": Python datetime object,
+                "datetime": Arrow object,
                 "duration": (float): duration in minutes
             }
     """
     date = time = date_time = duration = None
     if params["date"]:
-        date = dt.datetime.fromisoformat(params["date"])
+        date = arrow.get(params["date"])
     if params["time"]:
-        time = dt.datetime.fromisoformat(params["time"])
+        time = arrow.get(params["time"])
     if date is not None and time is not None:
         date_time = date.replace(hour=time.hour, minute=time.minute)
 

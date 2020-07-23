@@ -80,7 +80,7 @@ def handle_text_msg(update, context):
     message = update.effective_message
     message.chat.send_action(ChatAction.TYPING)
     intent = get_intent(message.from_user.id, message.text)
-    message.reply_text(intent["fulfill_text"])
+    message.reply_text(intent.fulfill_text)
 
 
 if __name__ == "__main__":
