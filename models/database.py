@@ -47,16 +47,14 @@ class Database(object):
 
         return team
 
-    # return all meeting objects
-    def get_all_meetings(self):
-        meetings = self.session.query(Meetings).all()
-        # for meeting in meetings:
-        #    print (book.title)
+    # return all meeting objects  given team_id
+    def get_all_meetings(self, team_id):
+        meetings = self.session.query(Meetings).filter(Teams.team_id == team_id).all()
         return meetings
 
-    # return all task objects
-    def get_all_tasks(self):
-        tasks = self.session.query(Tasks).all()
+    # return all task objects given team_id
+    def get_all_tasks(self, team_id):
+        tasks = self.session.query(Tasks).filter(Teams.team_id == team_id).all()
         return tasks
 
     # return assigned tasks given team_id
