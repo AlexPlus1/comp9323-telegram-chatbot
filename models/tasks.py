@@ -24,3 +24,13 @@ class Tasks(Base):
         self.status = status
         self.summary = summary
         self.teams = teams
+
+    def complete_suggestion(self, tasks = None):
+        suggestion = None
+        if self.teams.suggestions:
+            suggestion = f"Please review and provide feedback for task: {self.name}\n"
+            if tasks:
+                suggestions += "Remaining assigned tasks:\n"
+                for task in tasks:
+                    suggestions += f"- {task}\n"
+        return suggestion

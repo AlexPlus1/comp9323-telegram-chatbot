@@ -21,3 +21,15 @@ class Meetings(Base):
         self.notes = notes
         self.teams = teams
 
+    def meeting_suggestion(self):
+        suggestion = None
+        if self.teams.suggestions:
+            suggestion = f'''
+                You have a meeting scheduled for {self.date_time}
+                Here are suggestions for your meeting:
+                1.  Take notes and upload any notes from the meeting
+                2.  Create and assign new tasks
+                3.  Update details for discussed tasks
+                4.  Schedule a follow-up meeting
+            '''
+        return suggestion
