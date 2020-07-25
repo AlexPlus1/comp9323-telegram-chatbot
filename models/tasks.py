@@ -3,7 +3,7 @@
 # status = 'assigned' / 'unassigned'
 
 
-from sqlalchemy import Column, String, Integer, Date, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from models.base import Base
 
@@ -12,7 +12,7 @@ class Tasks(Base):
 
     task_id = Column(Integer, primary_key=True)
     name = Column(String)
-    due_date = Column(Date)
+    due_date = Column(DateTime)
     status = Column(String)
     summary = Column(String)
     teams_id = Column(Integer, ForeignKey('Teams.team_id'))
