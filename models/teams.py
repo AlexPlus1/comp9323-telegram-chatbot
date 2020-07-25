@@ -8,8 +8,9 @@ class Teams(Base):
     team_id = Column(Integer, primary_key=True)
     suggestions = Column(Boolean)
 
-    def __init__(self):
+    def __init__(self, team_id):
         self.suggestions = True
+        self.team_id = team_id
 
     def suggestions_off(self):
         response = "Suggestions have been turned off"

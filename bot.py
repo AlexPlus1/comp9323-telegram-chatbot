@@ -11,6 +11,7 @@ from telegram.ext import (
     Filters,
     ConversationHandler,
 )
+import arrow
 
 import consts
 from api_service import get_intent
@@ -79,8 +80,56 @@ def greet_group(update, context):
 def handle_text_msg(update, context):
     message = update.effective_message
     message.chat.send_action(ChatAction.TYPING)
+    # init the team
+    chat_id = message.chat.id
+    team = DATABASE.get_team(chat_id)
+    if team is None:
+        team = Teams(team_id=chat_id)
+        DATABASE.insert(team)
+    
     intent = get_intent(message.from_user.id, message.text)
-    message.reply_text(intent.fulfill_text)
+    
+    # if mssage for meeting scheduled is given
+    if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
+        if intent.params["datetime"] < arrow.now():
+            message.reply_text("Can't schedule a meeting in the past")
+        else:
+            end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
+            # meetings = DATABASE.get_all_meetings()
+            meetings = DATABASE.get_all_meetings(chat_id)
+            sign = 0
+            if meetings:
+                for meeting in meetings:
+                    tmp_start = arrow.get(meeting.date_time)
+                    tmp_end = tmp_start.shift(minutes=meeting.duration)
+                    if end <= tmp_start:
+                        continue
+                    elif intent.params["datetime"] >= tmp_end:
+                        continue
+                    else:
+                        sign = 1
+                        tmp_time = tmp_start.to('local').format('YYYY-MM-DD HH:mm ZZZ')
+                        message.reply_text("Can't schedule this meeting, time conflicting with meeting at {} lasting for {} minutes".format(tmp_time, meeting.duration))
+                        break
+            if sign == 0:
+                time = intent.params["datetime"].format('YYYY-MM-DD HH:mm ZZZ')
+                reply = "Your meeting has been scheduled on {} for {} minutes.".format(time, int(intent.params["duration"]))
+                new_meeting = Meetings(date_time=intent.params["datetime"].to("UTC").datetime, duration=int(intent.params["duration"]), has_reminder=True, notes='', teams=team)
+                DATABASE.insert(new_meeting)
+                message.reply_text(reply)
+    elif intent.intent == consts.MEETING_LIST:
+        meetings = DATABASE.get_all_meetings(chat_id)
+        reply = intent.fulfill_text
+        if meetings:
+            for meeting in meetings:
+                time = arrow.get(meeting.date_time).to('local').format('YYYY-MM-DD HH:mm ZZZ')
+                tmp = "\n{}: {} for {} minutes".format(meeting.meeting_id, time, meeting.duration)
+                reply += tmp
+            message.reply_text(reply)
+        else:
+            message.reply_text("There's no upcoming meetings")
+    else:
+        message.reply_text(intent.fulfill_text)
 
 
 if __name__ == "__main__":
