@@ -43,6 +43,7 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_msg))
+    # dp.add_handler(, group=1)
 
     # Start the Bot
     updater.start_polling()
@@ -121,10 +122,12 @@ def handle_text_msg(update, context):
         meetings = DATABASE.get_all_meetings(chat_id)
         reply = intent.fulfill_text
         if meetings:
+            i = 1
             for meeting in meetings:
                 time = arrow.get(meeting.date_time).to('local').format('YYYY-MM-DD HH:mm ZZZ')
-                tmp = "\n{}: {} for {} minutes".format(meeting.meeting_id, time, meeting.duration)
+                tmp = "\n{}: {} for {} minutes".format(i, time, meeting.duration)
                 reply += tmp
+                i += 1
             message.reply_text(reply)
         else:
             message.reply_text("There's no upcoming meetings")
