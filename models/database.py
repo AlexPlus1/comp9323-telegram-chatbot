@@ -19,7 +19,7 @@ from models.teams import Teams
 # a SQLAlchemy Engine that will interact with our sqlite database
 # a SQLAlchemy ORM session factory bound to this engine
 # a base class for our classes definitions.
-engine = create_engine("sqlite:///bot.db")
+engine = create_engine("sqlite:///bot.db", connect_args={'check_same_thread': False})
 DB_Session = sessionmaker(bind=engine)
 
 

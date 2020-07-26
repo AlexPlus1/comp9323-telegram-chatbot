@@ -10,6 +10,7 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     ConversationHandler,
+    CallbackContext,
 )
 import arrow
 
@@ -37,6 +38,9 @@ def init_db():
 def main():
     # Create the Updater and pass it your bot's token.
     updater = Updater(TOKEN, use_context=True)
+    
+    job = updater.job_queue
+    #job_minute = job.run_repeating(check_meeting_reminder, interval=15, first=0)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -120,13 +124,17 @@ def handle_text_msg(update, context):
                         break
             if sign == 0:
                 time = intent.params["datetime"].format("YYYY-MM-DD HH:mm ZZZ")
-                reply = "Your meeting has been scheduled on {} for {} minutes.".format(
-                    time, int(intent.params["duration"])
+                reply = "Your meeting has been scheduled on {} for {} minutes.\nReminder: {}".format(
+                    time, int(intent.params["duration"]), intent.params["reminder"]
                 )
+                if intent.params["reminder"] == "on":
+                    tmp_v = True
+                else:
+                    tmp_v = False
                 new_meeting = Meetings(
                     datetime=intent.params["datetime"].to("UTC").datetime,
                     duration=int(intent.params["duration"]),
-                    has_reminder=True,
+                    has_reminder=tmp_v,
                     notes="",
                     teams=team,
                 )
@@ -148,6 +156,10 @@ def handle_text_msg(update, context):
     else:
         message.reply_text(intent.fulfill_text)
 
+
+def check_meeting_reminder(context: CallbackContext):
+    context.bot.send_message(chat_id=1329790106, 
+                             text='One message every 15 sec')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
