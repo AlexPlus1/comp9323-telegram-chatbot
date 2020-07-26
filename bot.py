@@ -40,7 +40,7 @@ def main():
     updater = Updater(TOKEN, use_context=True)
     
     job = updater.job_queue
-    #job_minute = job.run_repeating(check_meeting_reminder, interval=15, first=0)
+    job.run_repeating(check_meeting_reminder, interval=300, first=0)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -158,8 +158,23 @@ def handle_text_msg(update, context):
 
 
 def check_meeting_reminder(context: CallbackContext):
-    context.bot.send_message(chat_id=1329790106, 
-                             text='One message every 15 sec')
+    meetings = DATABASE.get_all_my_meetings()
+    for m in meetings :
+        if m.has_reminder == True:
+            temp_time = arrow.get(m.date_time )
+            cur_time =  arrow.utcnow()
+            range = temp_time - cur_time
+            if  86395< range.seconds < 86415:          
+                context.bot.send_message(chat_id=m.teams_id, 
+                                text='Your meeting will be held in 24 hours')
+            elif  3585<range.seconds < 3615:          
+                context.bot.send_message(chat_id=m.teams_id, 
+                                text='Your meeting will be held in an hour')
+            elif -15< range.seconds < 75:
+                context.bot.send_message(chat_id=m.teams_id, 
+                                text='Your meeting will be held soon')
+            
+            
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

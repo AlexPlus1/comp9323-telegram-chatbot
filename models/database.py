@@ -53,6 +53,10 @@ class Database(object):
             self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
         )
         return meetings
+        
+    def get_all_my_meetings(self):
+        meetings = self.session.query(Meetings).all()
+        return meetings
 
     # return all meeting objects given team_id and meeting_datetime
     def get_meeting_by_time(self, team_id, meeting_datetime):
