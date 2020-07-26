@@ -70,20 +70,20 @@ def get_schedule_meeting_params(params):
                 "duration": (float): duration in minutes
             }
     """
-    date = time = date_time = duration = None
+    date = time = datetime = duration = None
     if params["date"]:
         date = arrow.get(params["date"])
     if params["time"]:
         time = arrow.get(params["time"])
     if date is not None and time is not None:
-        date_time = date.replace(hour=time.hour, minute=time.minute)
+        datetime = date.replace(hour=time.hour, minute=time.minute)
 
     if params["duration"]:
         duration = params["duration"]["amount"]
         if params["duration"]["unit"] == "h":
             duration *= 60
 
-    result = {"datetime": date_time, "duration": duration}
+    result = {"datetime": datetime, "duration": duration}
 
     return result
 

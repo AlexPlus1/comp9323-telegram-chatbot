@@ -49,18 +49,34 @@ class Database(object):
 
     # return all meeting objects given team_id
     def get_all_meetings(self, team_id):
-        meetings = self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
+        meetings = (
+            self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
+        )
         return meetings
 
     # return all meeting objects given team_id and meeting_datetime
     def get_meeting_by_time(self, team_id, meeting_datetime):
-        meeting = self.session.query(Meetings).filter(Meetings.teams_id == team_id, Meetings.date_time == meeting_datetime).first()
+        meeting = (
+            self.session.query(Meetings)
+            .filter(Meetings.teams_id == team_id, Meetings.datetime == meeting_datetime)
+            .first()
+        )
         return meeting
 
     # return the closest meeting given team_id and meeting_datetime
     def get_closest_meeting(self, team_id, meeting_datetime):
-        greater = self.session.query(Meetings).filter(Meetings.date_time > meeting_datetime).limit(1).all()
-        lesser = self.session.query(Meetings).filter(Meetings.date_time < meeting_datetime).limit(1).all()
+        greater = (
+            self.session.query(Meetings)
+            .filter(Meetings.datetime > meeting_datetime)
+            .limit(1)
+            .all()
+        )
+        lesser = (
+            self.session.query(Meetings)
+            .filter(Meetings.datetime < meeting_datetime)
+            .limit(1)
+            .all()
+        )
 
         if greater is None and lesser is not None:
             return lesser
@@ -84,7 +100,7 @@ class Database(object):
     def get_assigned_tasks(self, team_id):
         tasks = (
             self.session.query(Tasks)
-            .filter(Tasks.teams_id == team_id , Tasks.status == "assigned")
+            .filter(Tasks.teams_id == team_id, Tasks.status == "assigned")
             .all()
         )
         return tasks

@@ -87,21 +87,23 @@ def handle_text_msg(update, context):
     if team is None:
         team = Teams(team_id=chat_id)
         DATABASE.insert(team)
-    
+
     intent = get_intent(message.from_user.id, message.text)
-    
+
     # if mssage for meeting scheduled is given
     if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
         if intent.params["datetime"] < arrow.now():
             message.reply_text("Can't schedule a meeting in the past")
         else:
-            end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
+            end = intent.params["datetime"].shift(
+                minutes=int(intent.params["duration"])
+            )
             # meetings = DATABASE.get_all_meetings()
             meetings = DATABASE.get_all_meetings(chat_id)
             sign = 0
             if meetings:
                 for meeting in meetings:
-                    tmp_start = arrow.get(meeting.date_time)
+                    tmp_start = meeting.datetime
                     tmp_end = tmp_start.shift(minutes=meeting.duration)
                     if end <= tmp_start:
                         continue
@@ -109,13 +111,25 @@ def handle_text_msg(update, context):
                         continue
                     else:
                         sign = 1
-                        tmp_time = tmp_start.to('local').format('YYYY-MM-DD HH:mm ZZZ')
-                        message.reply_text("Can't schedule this meeting, time conflicting with meeting at {} lasting for {} minutes".format(tmp_time, meeting.duration))
+                        tmp_time = tmp_start.to("local").format("YYYY-MM-DD HH:mm ZZZ")
+                        message.reply_text(
+                            "Can't schedule this meeting, time conflicting with meeting at {} lasting for {} minutes".format(
+                                tmp_time, meeting.duration
+                            )
+                        )
                         break
             if sign == 0:
-                time = intent.params["datetime"].format('YYYY-MM-DD HH:mm ZZZ')
-                reply = "Your meeting has been scheduled on {} for {} minutes.".format(time, int(intent.params["duration"]))
-                new_meeting = Meetings(date_time=intent.params["datetime"].to("UTC").datetime, duration=int(intent.params["duration"]), has_reminder=True, notes='', teams=team)
+                time = intent.params["datetime"].format("YYYY-MM-DD HH:mm ZZZ")
+                reply = "Your meeting has been scheduled on {} for {} minutes.".format(
+                    time, int(intent.params["duration"])
+                )
+                new_meeting = Meetings(
+                    datetime=intent.params["datetime"].to("UTC").datetime,
+                    duration=int(intent.params["duration"]),
+                    has_reminder=True,
+                    notes="",
+                    teams=team,
+                )
                 DATABASE.insert(new_meeting)
                 message.reply_text(reply)
     elif intent.intent == consts.MEETING_LIST:
@@ -124,7 +138,7 @@ def handle_text_msg(update, context):
         if meetings:
             i = 1
             for meeting in meetings:
-                time = arrow.get(meeting.date_time).to('local').format('YYYY-MM-DD HH:mm ZZZ')
+                time = meeting.datetime.to("local").format("YYYY-MM-DD HH:mm ZZZ")
                 tmp = "\n{}: {} for {} minutes".format(i, time, meeting.duration)
                 reply += tmp
                 i += 1
