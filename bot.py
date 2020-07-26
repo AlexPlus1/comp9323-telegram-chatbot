@@ -161,16 +161,16 @@ def check_meeting_reminder(context: CallbackContext):
     meetings = DATABASE.get_all_my_meetings()
     for m in meetings :
         if m.has_reminder == True:
-            temp_time = arrow.get(m.date_time )
+            temp_time = arrow.get(m.datetime)
             cur_time =  arrow.utcnow()
             range = temp_time - cur_time
-            if  86395< range.seconds < 86415:          
+            if  86400 <= range.seconds < 86700:          
                 context.bot.send_message(chat_id=m.teams_id, 
                                 text='Your meeting will be held in 24 hours')
-            elif  3585<range.seconds < 3615:          
+            elif  3600 <= range.seconds < 3900:          
                 context.bot.send_message(chat_id=m.teams_id, 
                                 text='Your meeting will be held in an hour')
-            elif -15< range.seconds < 75:
+            elif 300 <= range.seconds < 600:
                 context.bot.send_message(chat_id=m.teams_id, 
                                 text='Your meeting will be held soon')
             
