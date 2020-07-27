@@ -39,10 +39,12 @@ def get_intent(session_id, text) -> IntentResult:
 
     query_result = response.query_result
     intent = query_result.intent.display_name
-    params = {}
+    params = None
 
     if intent == consts.SCHEDULE_MEETING:
         params = get_schedule_meeting_params(query_result.parameters)
+    elif intent in {consts.STORE_MEETING_NOTES, consts.GET_MEETING_NOTES}:
+        params = {"datetime": get_datetime(query_result.parameters)}
     # meeting list
     elif intent == consts.MEETING_LIST:
         params = None
@@ -71,22 +73,26 @@ def get_schedule_meeting_params(params):
                 "duration": (float): duration in minutes
             }
     """
-    date = time = date_time = duration = reminder = None
-    if params["date"]:
-        date = arrow.get(params["date"])
-    if params["time"]:
-        time = arrow.get(params["time"])
-    if date is not None and time is not None:
-        date_time = date.replace(hour=time.hour, minute=time.minute)
-    if params["reminder"]:
-        reminder = params["reminder"]
-
-    if params["duration"]:
+    duration = reminder = None
+    if "duration" in params and params["duration"]:
         duration = params["duration"]["amount"]
         if params["duration"]["unit"] == "h":
             duration *= 60
+    if params["reminder"]:
+        reminder = params["reminder"]
 
-    result = {"datetime": date_time, "duration": duration, "reminder": reminder}
+    result = {"datetime": get_datetime(params), "duration": duration, "reminder": reminder}
 
     return result
 
+
+def get_datetime(params):
+    date = time = datetime = None
+    if "date" in params and params["date"]:
+        date = arrow.get(params["date"])
+    if "time" in params and params["time"]:
+        time = arrow.get(params["time"])
+    if date is not None and time is not None:
+        datetime = date.replace(hour=time.hour, minute=time.minute)
+
+    return datetime

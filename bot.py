@@ -17,7 +17,7 @@ import arrow
 
 import consts
 from api_service import get_intent
-from models import *
+from models import Database, Teams, Meetings
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -46,8 +46,10 @@ def main():
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(handle_callback_query))
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_msg))
+    dp.add_handler(MessageHandler(Filters.document, store_meeting_notes))
     
     #show schedule and change remind
     dp.add_handler(CallbackQueryHandler(remind_main_menu, pattern='remind_main'))
@@ -56,7 +58,6 @@ def main():
     dp.add_handler(CallbackQueryHandler(cancel_redmind, pattern=r'cr.*'))
     dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))                                                    
     dp.add_handler(CallbackQueryHandler(cancel_del,pattern='cancel_change_reminder'))
-    # dp.add_handler(, group=1)
 
     # Start the Bot
     updater.start_polling()
@@ -141,7 +142,7 @@ def handle_text_msg(update, context):
                 else:
                     tmp_v = False
                 new_meeting = Meetings(
-                    datetime=intent.params["datetime"].to("UTC").datetime,
+                    datetime=intent.params["datetime"].to("UTC"),
                     duration=int(intent.params["duration"]),
                     has_reminder=tmp_v,
                     notes="",
@@ -162,6 +163,10 @@ def handle_text_msg(update, context):
             message.reply_text(reply)
         else:
             message.reply_text("There's no upcoming meetings")
+    elif intent.intent == consts.STORE_MEETING_NOTES and intent.all_params_present:
+        handle_store_notes_intent(update, context, intent)
+    elif intent.intent == consts.GET_MEETING_NOTES and intent.all_params_present:
+        get_meeting_notes(update, context, intent)
     elif intent.intent == consts.CANCEL_REMINDER:
         update.message.reply_text( text='Choose the option in main menu:',
                             reply_markup=remind_main_menu_keyboard())
@@ -274,6 +279,89 @@ def remind_first_menu_keyboard(temp):
             [InlineKeyboardButton('schedules', callback_data="remind_main")]]
     return InlineKeyboardMarkup(keyboard)
             
+
+
+def handle_store_notes_intent(update, context, intent):
+    message = update.effective_message
+    datetime = intent.params["datetime"]
+    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
+
+    if meeting is None:
+        message.reply_text(
+            "No meeting found with the given date and time. Please try again."
+        )
+    else:
+        if meeting.notes:
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "Yes",
+                        callback_data=f"{consts.STORE_MEETING_NOTES},{datetime.format()}",
+                    ),
+                    InlineKeyboardButton(
+                        "No", callback_data=f"{consts.STORE_MEETING_NOTES},no",
+                    ),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            message.reply_text(
+                "A meeting notes file already exists for this meeting, do you want to replace it?",
+                reply_markup=reply_markup,
+            )
+        else:
+            context.user_data[consts.STORE_MEETING_NOTES] = meeting
+            message.reply_text(intent.fulfill_text)
+
+
+def store_meeting_notes(update, context):
+    if consts.STORE_MEETING_NOTES in context.user_data:
+        message = update.effective_message
+        meeting = context.user_data[consts.STORE_MEETING_NOTES]
+        meeting.notes = message.document.file_id
+        DATABASE.commit()
+        update.effective_message.reply_text(
+            f"{message.document.file_name} has been stored as the notes for the meeting on {meeting.formatted_datetime()}"
+        )
+        del context.user_data[consts.STORE_MEETING_NOTES]
+
+
+def get_meeting_notes(update, context, intent):
+    message = update.effective_message
+    datetime = intent.params["datetime"]
+    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
+
+    if meeting is None:
+        message.reply_text(
+            "No meeting found with the given date and time. Please try again."
+        )
+    else:
+        if meeting.notes:
+            message.reply_document(meeting.notes, caption="Here's your meeting notes.")
+        else:
+            message.reply_text("No meeting notes found for the meeting.")
+
+
+def handle_callback_query(update, context):
+    query = update.callback_query
+    query.answer()
+    intent, data = query.data.split(",")
+
+    if intent == consts.STORE_MEETING_NOTES:
+        handle_store_notes_callback(context, query, data)
+
+
+def handle_store_notes_callback(context, query, data):
+    if data == "no":
+        query.edit_message_text("Cancelled for storing meeting notes")
+    else:
+        datetime = arrow.get(data)
+        meeting = DATABASE.get_meeting_by_time(query.message.chat_id, datetime)
+
+        if meeting is None:
+            query.edit_message_text("The meeting is invalid. Please try again.")
+        else:
+            context.user_data[consts.STORE_MEETING_NOTES] = meeting
+            query.edit_message_text("Please send me the meeting notes file.")
 
 
 if __name__ == "__main__":

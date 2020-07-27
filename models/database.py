@@ -57,6 +57,9 @@ class Database(object):
         else :
             return False
 
+    def commit(self):
+        self.session.commit()
+
     def get_team(self, team_id):
         team = self.session.query(Teams).filter(Teams.team_id == team_id).first()
         return team

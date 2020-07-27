@@ -1,5 +1,6 @@
 # Meetints class
 # M to 1 Teams
+import arrow
 
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
@@ -25,6 +26,9 @@ class Meetings(Base):
         self.has_reminder = has_reminder
         self.notes = notes
         self.teams = teams
+
+    def formatted_datetime(self):
+        return arrow.get(self.datetime).to("local").format("YYYY-MM-DD HH:mm ZZZ")
 
     def meeting_suggestion(self):
         suggestion = None
