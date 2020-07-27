@@ -54,10 +54,13 @@ def main():
     #show schedule and change remind
     dp.add_handler(CallbackQueryHandler(remind_main_menu, pattern='remind_main'))
     #dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern='remind_sub'))
+
     dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern=r'rf.*'))
-    dp.add_handler(CallbackQueryHandler(cancel_redmind, pattern=r'cr.*'))
-    dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))                                                    
+    dp.add_handler(CallbackQueryHandler(change_remind, pattern=r'cr.*'))
+    # dp.add_handler(CallbackQueryHandler(cancel_redmind, pattern=r'cr.*'))
+    # dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))                                                    
     dp.add_handler(CallbackQueryHandler(cancel_del,pattern='cancel_change_reminder'))
+
 
     # Start the Bot
     updater.start_polling()
@@ -183,7 +186,6 @@ def check_meeting_reminder(context: CallbackContext):
             range = temp_time - cur_time
             if  86400 <= range.seconds < 86700:          
                 context.bot.send_message(chat_id=m.teams_id, 
-
                                 text='Your meeting will start in 24 hours!')
             elif  3600 <= range.seconds < 3900:     
             #elif  300 <= range.seconds < 340:       
@@ -191,40 +193,24 @@ def check_meeting_reminder(context: CallbackContext):
                                 text='Your meeting will start in an hour!')
             elif 300 <= range.seconds < 600:
             #elif 0 <= range.seconds < 299:
-
                 context.bot.send_message(chat_id=m.teams_id, 
                                 text='Your meeting will start soon!')
                                 
-def cancel_redmind(update,context):
-    # message = update.effective_message
-    # message.chat.send_action(ChatAction.TYPING)
-    # chat_id = message.chat.id
-    # DATABASE.cancel_remind(chat_id)
-    #temp = update.effective_message
-    query = update.callback_query
-    query.answer()
-    temp = query.data[2:]
-    DATABASE.cancel_remind(temp)
-    query.edit_message_text(
-        #text="You have cancelled the reminder!"
-        text = "You have cancelled the reminder!"
-    )
-    return ConversationHandler.END
-    
-def set_redmind(update,context):
-    # message = update.effective_message
-    # message.chat.send_action(ChatAction.TYPING)
-    # chat_id = message.chat.id
-    # DATABASE.set_remind(chat_id)
-    # temp = update.message
+def change_remind(update,context):
+
     query = update.callback_query
     temp = query.data[2:]
-    
     query.answer()
-    DATABASE.set_remind(temp)
+    check = DATABASE.reminder_state(temp)
+    if check == True:
+        temp_text = "You have cancelled the reminder!"
+        DATABASE.cancel_remind(temp)      
+    else:
+        temp_text = "You have set the reminder!"    
+        DATABASE.set_remind(temp)
+        
     query.edit_message_text(
-        #text="You have set the reminder!"
-        text = "You have set the reminder!"
+        text = temp_text
     )
     return ConversationHandler.END
     
@@ -251,12 +237,7 @@ def remind_main_menu_keyboard():
     keyboard = []
     for meeting in meetings:
         temp = meeting.datetime.to("local").format("YYYY-MM-DD HH:mm ZZZ")
-        #temp = meeting.datetime.strftime("%Y-%m-%d %H:%M:%S")
         keyboard.append([InlineKeyboardButton(temp, callback_data=f"rf{meeting.meeting_id}")]) 
-    # keyboard = []
-    # for word in temp_list:
-    #     #keyboard.append([InlineKeyboardButton(word, callback_data='remind_sub')]) 
-    #     keyboard.append([InlineKeyboardButton(word, callback_data=f'rb {}')]) 
     keyboard.append([InlineKeyboardButton("I dont want to change reminder", callback_data="cancel_change_reminder")]) 
     return InlineKeyboardMarkup(keyboard)
 
@@ -275,11 +256,10 @@ def remind_first_menu(update,context):
                         
 def remind_first_menu_keyboard(temp):
     keyboard = [[InlineKeyboardButton('cancel reminder', callback_data=f"cr{temp}")],
-            [InlineKeyboardButton('set reminder', callback_data=f"sr{temp}")],
+            [InlineKeyboardButton('set reminder', callback_data=f"cr{temp}")],
             [InlineKeyboardButton('schedules', callback_data="remind_main")]]
     return InlineKeyboardMarkup(keyboard)
             
-
 
 def handle_store_notes_intent(update, context, intent):
     message = update.effective_message
