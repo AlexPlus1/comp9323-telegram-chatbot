@@ -41,10 +41,24 @@ class Database(object):
         # DBSession = sessionmaker(bind=engine)
         self.session.add(object)
         self.session.commit()
+    
+    def set_remind(self, meating_id):
+        info = self.session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
+        info.has_reminder= True
+        
+    def cancel_remind(self, meating_id):
+        info = self.session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
+        info.has_reminder= False
+    
+    def reminder_state(self, meating_id):
+        info = self.session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
+        if info.has_reminder == True :
+            return True
+        else :
+            return False
 
     def get_team(self, team_id):
         team = self.session.query(Teams).filter(Teams.team_id == team_id).first()
-
         return team
 
     # return all meeting objects given team_id

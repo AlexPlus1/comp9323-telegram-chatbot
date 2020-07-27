@@ -3,7 +3,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction,InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -11,6 +11,7 @@ from telegram.ext import (
     Filters,
     ConversationHandler,
     CallbackContext,
+    CallbackQueryHandler,
 )
 import arrow
 
@@ -47,6 +48,14 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_msg))
+    
+    #show schedule and change remind
+    dp.add_handler(CallbackQueryHandler(remind_main_menu, pattern='remind_main'))
+    #dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern='remind_sub'))
+    dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern=r'rf.*'))
+    dp.add_handler(CallbackQueryHandler(cancel_redmind, pattern=r'cr.*'))
+    dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))                                                    
+    dp.add_handler(CallbackQueryHandler(cancel_del,pattern='cancel_change_reminder'))
     # dp.add_handler(, group=1)
 
     # Start the Bot
@@ -153,10 +162,13 @@ def handle_text_msg(update, context):
             message.reply_text(reply)
         else:
             message.reply_text("There's no upcoming meetings")
+    elif intent.intent == consts.CANCEL_REMINDER:
+        update.message.reply_text( text='Choose the option in main menu:',
+                            reply_markup=remind_main_menu_keyboard())
     else:
         message.reply_text(intent.fulfill_text)
 
-
+###############################  REMINDER ############################################
 def check_meeting_reminder(context: CallbackContext):
     meetings = DATABASE.get_all_my_meetings()
     for m in meetings :
@@ -166,15 +178,103 @@ def check_meeting_reminder(context: CallbackContext):
             range = temp_time - cur_time
             if  86400 <= range.seconds < 86700:          
                 context.bot.send_message(chat_id=m.teams_id, 
-                                text='Your meeting will be held in 24 hours')
-            elif  3600 <= range.seconds < 3900:          
+
+                                text='Your meeting will start in 24 hours!')
+            elif  3600 <= range.seconds < 3900:     
+            #elif  300 <= range.seconds < 340:       
                 context.bot.send_message(chat_id=m.teams_id, 
-                                text='Your meeting will be held in an hour')
+                                text='Your meeting will start in an hour!')
             elif 300 <= range.seconds < 600:
+            #elif 0 <= range.seconds < 299:
+
                 context.bot.send_message(chat_id=m.teams_id, 
-                                text='Your meeting will be held soon')
+                                text='Your meeting will start soon!')
+                                
+def cancel_redmind(update,context):
+    # message = update.effective_message
+    # message.chat.send_action(ChatAction.TYPING)
+    # chat_id = message.chat.id
+    # DATABASE.cancel_remind(chat_id)
+    #temp = update.effective_message
+    query = update.callback_query
+    query.answer()
+    temp = query.data[2:]
+    DATABASE.cancel_remind(temp)
+    query.edit_message_text(
+        #text="You have cancelled the reminder!"
+        text = "You have cancelled the reminder!"
+    )
+    return ConversationHandler.END
+    
+def set_redmind(update,context):
+    # message = update.effective_message
+    # message.chat.send_action(ChatAction.TYPING)
+    # chat_id = message.chat.id
+    # DATABASE.set_remind(chat_id)
+    # temp = update.message
+    query = update.callback_query
+    temp = query.data[2:]
+    
+    query.answer()
+    DATABASE.set_remind(temp)
+    query.edit_message_text(
+        #text="You have set the reminder!"
+        text = "You have set the reminder!"
+    )
+    return ConversationHandler.END
+    
+def cancel_del(update,context):
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(
+        text="What else can I do for you?"
+    )
+    return ConversationHandler.END                       
+       
+ ###############################  MENU ############################################
+
+def remind_main_menu(update,context):
+    
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(
+                        text='Choose the meeting:',
+                        reply_markup=remind_main_menu_keyboard())
+
+def remind_main_menu_keyboard():  
+    meetings = DATABASE.get_all_my_meetings()
+    keyboard = []
+    for meeting in meetings:
+        temp = meeting.datetime.to("local").format("YYYY-MM-DD HH:mm ZZZ")
+        #temp = meeting.datetime.strftime("%Y-%m-%d %H:%M:%S")
+        keyboard.append([InlineKeyboardButton(temp, callback_data=f"rf{meeting.meeting_id}")]) 
+    # keyboard = []
+    # for word in temp_list:
+    #     #keyboard.append([InlineKeyboardButton(word, callback_data='remind_sub')]) 
+    #     keyboard.append([InlineKeyboardButton(word, callback_data=f'rb {}')]) 
+    keyboard.append([InlineKeyboardButton("I dont want to change reminder", callback_data="cancel_change_reminder")]) 
+    return InlineKeyboardMarkup(keyboard)
+
+def remind_first_menu(update,context):
+    query = update.callback_query
+    query.answer()
+    temp = query.data[2:]
+    check = DATABASE.reminder_state(temp)
+    if check == True:
+        reminder = "reminider state: on"
+    else:
+        reminder = "reminider state: off"
+    query.edit_message_text(
+                        text=reminder,
+                        reply_markup=remind_first_menu_keyboard(temp))
+                        
+def remind_first_menu_keyboard(temp):
+    keyboard = [[InlineKeyboardButton('cancel reminder', callback_data=f"cr{temp}")],
+            [InlineKeyboardButton('set reminder', callback_data=f"sr{temp}")],
+            [InlineKeyboardButton('schedules', callback_data="remind_main")]]
+    return InlineKeyboardMarkup(keyboard)
             
-            
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -46,7 +46,8 @@ def get_intent(session_id, text) -> IntentResult:
     # meeting list
     elif intent == consts.MEETING_LIST:
         params = None
-
+    elif intent == consts.CANCEL_REMINDER:
+        params = None
     result = IntentResult(
         intent,
         params,
