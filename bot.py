@@ -10,6 +10,7 @@ from telegram import (
     ParseMode,
     KeyboardButton,
     ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
 )
 from telegram.ext import (
     Updater,
@@ -168,12 +169,16 @@ def handle_text_msg(update, context):
 
     # if mssage for meeting scheduled is given
     if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
-        handle_schedule_meeting_intent(message, intent)
+        schedule_meeting_intent(context, message, intent)
+    elif intent.intent == consts.MEETING_REMINDER:
+        meeting_reminder_intent(context, message)
+    elif intent.intent == consts.MEETING_NO_REMIDNER:
+        meeting_no_reminder_intent(context, message)
     elif intent.intent == consts.MEETING_LIST:
-        handle_list_meetings_intent(message, intent)
+        list_meetings_intent(message, intent)
     elif intent.intent == consts.STORE_NOTES:
         store_notes_intent(context, message, intent)
-    elif intent.intent == consts.GET_NOTES and intent.all_params_present:
+    elif intent.intent == consts.GET_NOTES:
         get_notes_intent(update, context, intent)
     elif intent.intent == consts.CANCEL_REMINDER:
         update.message.reply_text(
@@ -184,51 +189,85 @@ def handle_text_msg(update, context):
         message.reply_text(intent.fulfill_text)
 
 
-def handle_schedule_meeting_intent(message, intent):
+def schedule_meeting_intent(context, message, intent):
     if intent.params["datetime"] < arrow.now():
         message.reply_text("Can't schedule a meeting in the past")
     else:
-        end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
-        meetings = DATABASE.get_all_meetings(message.chat_id)
-        sign = 0
-        if meetings:
-            for meeting in meetings:
-                tmp_start = meeting.datetime
-                tmp_end = tmp_start.shift(minutes=meeting.duration)
-                if end <= tmp_start:
-                    continue
-                elif intent.params["datetime"] >= tmp_end:
-                    continue
-                else:
-                    sign = 1
-                    tmp_time = tmp_start.to(consts.TIMEZONE).format(
-                        consts.DATETIME_FORMAT
-                    )
-                    message.reply_text(
-                        "Can't schedule this meeting, time conflicting with meeting at <b>{}</b> lasting for <b>{} minutes</b>.".format(
-                            tmp_time, meeting.duration
-                        ),
-                        parse_mode=ParseMode.HTML,
-                    )
-                    break
-        if sign == 0:
+        if not check_meeting_conflict(message, intent):
             new_meeting = Meetings(
                 datetime=intent.params["datetime"].to("UTC"),
                 duration=int(intent.params["duration"]),
-                has_reminder=intent.params["reminder"] == "on",
                 teams=DATABASE.get_team(message.chat.id),
             )
             DATABASE.insert(new_meeting)
+            context.user_data[consts.SCHEDULE_MEETING] = new_meeting
 
-            reply = "Your meeting has been scheduled on <b>{}</b> for <b>{} minutes</b>.\n\nReminder: {}".format(
-                new_meeting.formatted_datetime(),
-                int(intent.params["duration"]),
-                intent.params["reminder"],
+            reply = "Your meeting has been scheduled on <b>{}</b> for <b>{} minutes</b>.".format(
+                new_meeting.formatted_datetime(), int(intent.params["duration"]),
             )
             message.reply_text(reply, parse_mode=ParseMode.HTML)
 
+            keyboard = [[KeyboardButton("Yes"), KeyboardButton("No")]]
+            reply_markup = ReplyKeyboardMarkup(
+                keyboard, resize_keyboard=True, one_time_keyboard=True
+            )
+            message.reply_text(
+                "Do you want to set a reminder for this meeting?",
+                quote=False,
+                reply_markup=reply_markup,
+            )
 
-def handle_list_meetings_intent(message, intent):
+
+def check_meeting_conflict(message, intent):
+    end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
+    meetings = DATABASE.get_all_meetings(message.chat_id)
+    is_conflict = False
+
+    if meetings:
+        for meeting in meetings:
+            tmp_start = meeting.datetime
+            tmp_end = tmp_start.shift(minutes=meeting.duration)
+            if end <= tmp_start or intent.params["datetime"] >= tmp_end:
+                continue
+            else:
+                is_conflict = True
+                tmp_time = tmp_start.to(consts.TIMEZONE).format(consts.DATETIME_FORMAT)
+                message.reply_text(
+                    "Can't schedule this meeting, time conflicting with meeting at <b>{}</b> lasting for <b>{} minutes</b>.".format(
+                        tmp_time, meeting.duration
+                    ),
+                    parse_mode=ParseMode.HTML,
+                )
+                break
+
+    return is_conflict
+
+
+def meeting_reminder_intent(context, message):
+    if consts.SCHEDULE_MEETING in context.user_data:
+        meeting = context.user_data[consts.SCHEDULE_MEETING]
+        meeting.has_reminder = True
+        DATABASE.commit()
+        del context.user_data[consts.SCHEDULE_MEETING]
+
+        message.reply_text(
+            "A reminder has been set.", reply_markup=ReplyKeyboardRemove()
+        )
+
+
+def meeting_no_reminder_intent(context, message):
+    message.reply_text(
+        "Let me know if you'll like to set a reminder later",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+
+    try:
+        del context.user_data[consts.SCHEDULE_MEETING]
+    except KeyError:
+        pass
+
+
+def list_meetings_intent(message, intent):
     meetings = DATABASE.get_all_meetings(message.chat_id)
     reply = intent.fulfill_text + "\n"
     if meetings:

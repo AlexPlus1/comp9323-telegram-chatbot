@@ -173,5 +173,5 @@ def get_notes_callback(update, context):
     elif not meeting.notes:
         query.edit_message_text("There's no meeting notes found for this meeting.")
     else:
-        query.edit_message_text("Please send below for your meeting notes.")
+        query.edit_message_text("Please see below for your meeting notes.")
         context.bot.send_document(query.message.chat.id, meeting.notes)

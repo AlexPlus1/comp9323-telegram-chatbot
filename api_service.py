@@ -70,18 +70,15 @@ def get_schedule_meeting_params(params):
                 "duration": (float): duration in minutes
             }
     """
-    duration = reminder = None
+    duration = None
     if "duration" in params and params["duration"]:
         duration = params["duration"]["amount"]
         if params["duration"]["unit"] == "h":
             duration *= 60
-    if "reminder" in params and params["reminder"]:
-        reminder = params["reminder"]
 
     result = {
         "datetime": get_datetime(params),
         "duration": duration,
-        "reminder": reminder,
     }
 
     return result
