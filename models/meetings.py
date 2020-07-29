@@ -5,6 +5,8 @@ import arrow
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import ArrowType
+
+import consts
 from models.base import Base
 
 
@@ -20,15 +22,10 @@ class Meetings(Base):
     teams_id = Column(Integer, ForeignKey("Teams.team_id"))
     teams = relationship("Teams", backref="Meetings")
 
-    def __init__(self, datetime, duration, has_reminder, notes, teams):
-        self.datetime = datetime
-        self.duration = duration
-        self.has_reminder = has_reminder
-        self.notes = notes
-        self.teams = teams
-
     def formatted_datetime(self):
-        return arrow.get(self.datetime).to("local").format("YYYY-MM-DD HH:mm ZZZ")
+        return (
+            arrow.get(self.datetime).to(consts.TIMEZONE).format(consts.DATETIME_FORMAT)
+        )
 
     def meeting_suggestion(self):
         suggestion = None

@@ -3,11 +3,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from telegram import (
-    ChatAction,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import ChatAction, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -65,7 +61,12 @@ def main():
     dp.add_handler(CallbackQueryHandler(cancel_del, pattern="cancel_change_reminder"))
     dp.add_handler(
         CallbackQueryHandler(
-            handle_store_notes_callback, pattern=rf"{consts.STORE_MEETING_NOTES}.*"
+            handle_store_notes_callback, pattern=rf"{consts.STORE_NOTES}.*"
+        )
+    )
+    dp.add_handler(
+        CallbackQueryHandler(
+            handle_get_notes_callback, pattern=rf"{consts.GET_MEETING_NOTES}.*"
         )
     )
 
@@ -119,10 +120,10 @@ def handle_text_msg(update, context):
         handle_schedule_meeting_intent(message, intent, team)
     elif intent.intent == consts.MEETING_LIST:
         handle_list_meetings_intent(message, intent)
-    elif intent.intent == consts.STORE_MEETING_NOTES and intent.all_params_present:
-        handle_store_notes_intent(update, context, intent)
+    elif intent.intent == consts.STORE_NOTES:
+        handle_store_notes_intent(context, message, intent)
     elif intent.intent == consts.GET_MEETING_NOTES and intent.all_params_present:
-        get_meeting_notes(update, context, intent)
+        handle_get_notes_intent(update, context, intent)
     elif intent.intent == consts.CANCEL_REMINDER:
         update.message.reply_text(
             text="Choose the option in main menu:",
@@ -149,41 +150,42 @@ def handle_schedule_meeting_intent(message, intent, team):
                     continue
                 else:
                     sign = 1
-                    tmp_time = tmp_start.to("local").format("YYYY-MM-DD HH:mm ZZZ")
+                    tmp_time = tmp_start.to(consts.TIMEZONE).format(
+                        consts.DATETIME_FORMAT
+                    )
                     message.reply_text(
-                        "Can't schedule this meeting, time conflicting with meeting at {} lasting for {} minutes".format(
+                        "Can't schedule this meeting, time conflicting with meeting at <b>{}</b> lasting for <b>{} minutes</b>.".format(
                             tmp_time, meeting.duration
-                        )
+                        ),
+                        parse_mode=ParseMode.HTML,
                     )
                     break
         if sign == 0:
-            time = intent.params["datetime"].format("YYYY-MM-DD HH:mm ZZZ")
-            reply = "Your meeting has been scheduled on {} for {} minutes.\nReminder: {}".format(
-                time, int(intent.params["duration"]), intent.params["reminder"]
-            )
-            if intent.params["reminder"] == "on":
-                tmp_v = True
-            else:
-                tmp_v = False
             new_meeting = Meetings(
                 datetime=intent.params["datetime"].to("UTC"),
                 duration=int(intent.params["duration"]),
-                has_reminder=tmp_v,
-                notes="",
+                has_reminder=intent.params["reminder"] == "on",
                 teams=team,
             )
             DATABASE.insert(new_meeting)
-            message.reply_text(reply)
+
+            reply = "Your meeting has been scheduled on <b>{}</b> for <b>{} minutes</b>.\n\nReminder: {}".format(
+                new_meeting.formatted_datetime(),
+                int(intent.params["duration"]),
+                intent.params["reminder"],
+            )
+            message.reply_text(reply, parse_mode=ParseMode.HTML)
 
 
 def handle_list_meetings_intent(message, intent):
     meetings = DATABASE.get_all_meetings(message.chat_id)
-    reply = intent.fulfill_text
+    reply = intent.fulfill_text + "\n"
     if meetings:
         i = 1
         for meeting in meetings:
-            time = meeting.datetime.to("local").format("YYYY-MM-DD HH:mm ZZZ")
-            tmp = "\n{}: {} for {} minutes".format(i, time, meeting.duration)
+            tmp = "\n{}: {} for {} minutes".format(
+                i, meeting.formatted_datetime(), meeting.duration
+            )
             reply += tmp
             i += 1
         message.reply_text(reply)
@@ -252,9 +254,13 @@ def remind_main_menu_keyboard():
     meetings = DATABASE.get_all_my_meetings()
     keyboard = []
     for meeting in meetings:
-        temp = meeting.datetime.to("local").format("YYYY-MM-DD HH:mm ZZZ")
         keyboard.append(
-            [InlineKeyboardButton(temp, callback_data=f"rf{meeting.meeting_id}")]
+            [
+                InlineKeyboardButton(
+                    meeting.formatted_datetime(),
+                    callback_data=f"rf{meeting.meeting_id}",
+                )
+            ]
         )
     keyboard.append(
         [
@@ -289,55 +295,90 @@ def remind_first_menu_keyboard(temp):
     return InlineKeyboardMarkup(keyboard)
 
 
-def handle_store_notes_intent(update, context, intent):
-    message = update.effective_message
+def handle_store_notes_intent(context, message, intent):
     datetime = intent.params["datetime"]
-    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
+    if datetime is not None:
+        handle_store_notes_with_datetime(context, message, datetime)
+    else:
+        handle_store_notes_without_datetime(message)
 
+
+def handle_store_notes_with_datetime(context, message, datetime):
+    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
             "No meeting found with the given date and time. Please try again."
         )
     else:
         if meeting.notes:
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "Yes",
-                        callback_data=f"{consts.STORE_MEETING_NOTES},{datetime.format()}",
-                    ),
-                    InlineKeyboardButton(
-                        "No", callback_data=f"{consts.STORE_MEETING_NOTES},no",
-                    ),
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+            context.user_data[consts.CONFIRM_STORE_NOTES] = True
             message.reply_text(
                 "A meeting notes file already exists for this meeting, do you want to replace it?",
-                reply_markup=reply_markup,
+                reply_markup=get_store_notes_confirm_keyboard(datetime),
             )
         else:
-            context.user_data[consts.STORE_MEETING_NOTES] = meeting
-            message.reply_text(intent.fulfill_text)
+            context.user_data[consts.STORE_NOTES] = meeting
+            message.reply_text("Please send me the meeting notes file.")
+
+
+def get_store_notes_confirm_keyboard(datetime):
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "Yes", callback_data=f"{consts.STORE_NOTES},{datetime.format()}",
+            ),
+            InlineKeyboardButton("No", callback_data=f"{consts.STORE_NOTES},no",),
+        ]
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+def handle_store_notes_without_datetime(message):
+    meetings = DATABASE.get_all_meetings(message.chat_id)
+    keyboard = []
+
+    for meeting in meetings:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    meeting.formatted_datetime(),
+                    callback_data=f"{consts.STORE_NOTES},{meeting.datetime.format()}",
+                )
+            ]
+        )
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    message.reply_text(
+        "Please select the meeting that you'll like to store the notes.",
+        reply_markup=reply_markup,
+    )
 
 
 def store_meeting_notes(update, context):
-    if consts.STORE_MEETING_NOTES in context.user_data:
+    if consts.STORE_NOTES in context.user_data:
         message = update.effective_message
-        meeting = context.user_data[consts.STORE_MEETING_NOTES]
+        meeting = context.user_data[consts.STORE_NOTES]
         meeting.notes = message.document.file_id
         DATABASE.commit()
         update.effective_message.reply_text(
             f"{message.document.file_name} has been stored as the notes for the meeting on {meeting.formatted_datetime()}"
         )
-        del context.user_data[consts.STORE_MEETING_NOTES]
+        del context.user_data[consts.STORE_NOTES]
 
 
-def get_meeting_notes(update, context, intent):
+def handle_get_notes_intent(update, context, intent):
     message = update.effective_message
     datetime = intent.params["datetime"]
-    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
 
+    if datetime is not None:
+        get_notes_with_datetime(message, datetime)
+    else:
+        get_notes_without_datetime(message)
+
+
+def get_notes_with_datetime(message, datetime):
+    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
             "No meeting found with the given date and time. Please try again."
@@ -349,6 +390,28 @@ def get_meeting_notes(update, context, intent):
             message.reply_text("No meeting notes found for the meeting.")
 
 
+def get_notes_without_datetime(message):
+    meetings = DATABASE.get_all_meetings(message.chat_id)
+    keyboard = []
+
+    for meeting in meetings:
+        if meeting.notes:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        meeting.formatted_datetime(),
+                        callback_data=f"{consts.GET_MEETING_NOTES},{meeting.datetime.format()}",
+                    )
+                ]
+            )
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    message.reply_text(
+        "Please select the meeting that you'll like to retrieve the notes.",
+        reply_markup=reply_markup,
+    )
+
+
 def handle_store_notes_callback(update, context):
     query = update.callback_query
     query.answer()
@@ -356,15 +419,42 @@ def handle_store_notes_callback(update, context):
 
     if data == "no":
         query.edit_message_text("Cancelled for storing meeting notes")
+        if consts.CONFIRM_STORE_NOTES in context.user_data:
+            del context.user_data[consts.CONFIRM_STORE_NOTES]
     else:
         datetime = arrow.get(data)
-        meeting = DATABASE.get_meeting_by_time(query.message.chat_id, datetime)
+        if consts.CONFIRM_STORE_NOTES in context.user_data:
+            del context.user_data[consts.CONFIRM_STORE_NOTES]
+            meeting = DATABASE.get_meeting_by_time(query.message.chat_id, datetime)
 
-        if meeting is None:
-            query.edit_message_text("The meeting is invalid. Please try again.")
+            if meeting is None:
+                query.edit_message_text("The meeting is invalid. Please try again.")
+            else:
+                context.user_data[consts.STORE_NOTES] = meeting
+                query.edit_message_text("Please send me the meeting notes file.")
         else:
-            context.user_data[consts.STORE_MEETING_NOTES] = meeting
-            query.edit_message_text("Please send me the meeting notes file.")
+            context.user_data[consts.CONFIRM_STORE_NOTES] = True
+            query.edit_message_text(
+                "A meeting notes file already exists for this meeting, do you want to replace it?",
+                reply_markup=get_store_notes_confirm_keyboard(datetime),
+            )
+
+
+def handle_get_notes_callback(update, context):
+    query = update.callback_query
+    query.answer()
+    _, data = query.data.split(",")
+
+    datetime = arrow.get(data)
+    meeting = DATABASE.get_meeting_by_time(query.message.chat_id, datetime)
+
+    if meeting is None:
+        query.edit_message_text("The meeting is invalid. Please try again.")
+    elif not meeting.notes:
+        query.edit_message_text("There's no meeting notes found for this meeting.")
+    else:
+        query.edit_message_text("Please send below for your meeting notes.")
+        context.bot.send_document(query.message.chat.id, meeting.notes)
 
 
 if __name__ == "__main__":

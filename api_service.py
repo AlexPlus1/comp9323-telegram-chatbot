@@ -43,7 +43,7 @@ def get_intent(session_id, text) -> IntentResult:
 
     if intent == consts.SCHEDULE_MEETING:
         params = get_schedule_meeting_params(query_result.parameters)
-    elif intent in {consts.STORE_MEETING_NOTES, consts.GET_MEETING_NOTES}:
+    elif intent in {consts.STORE_NOTES, consts.GET_MEETING_NOTES}:
         params = {"datetime": get_datetime(query_result.parameters)}
     # meeting list
     elif intent == consts.MEETING_LIST:
@@ -81,7 +81,11 @@ def get_schedule_meeting_params(params):
     if params["reminder"]:
         reminder = params["reminder"]
 
-    result = {"datetime": get_datetime(params), "duration": duration, "reminder": reminder}
+    result = {
+        "datetime": get_datetime(params),
+        "duration": duration,
+        "reminder": reminder,
+    }
 
     return result
 
