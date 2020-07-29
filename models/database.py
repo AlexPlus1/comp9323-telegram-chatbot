@@ -3,23 +3,18 @@
 # provide all the functionalities of insert/delete/change records
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
 
-# from users import Users
-# from feedback import Feedback
-# from tasks import Tasks
-# from teams import Teams
 from models.meetings import Meetings
 from models.base import Base
 from models.teams import Teams
+from models.users import Users
 
-# create a database engine that stores data in the local directory's comp9323.db
+# create a database engine that stores data in the local directory's bot.db
 # a SQLAlchemy Engine that will interact with our sqlite database
 # a SQLAlchemy ORM session factory bound to this engine
 # a base class for our classes definitions.
-engine = create_engine("sqlite:///bot.db", connect_args={'check_same_thread': False})
+engine = create_engine("sqlite:///bot.db", connect_args={"check_same_thread": False})
 DB_Session = sessionmaker(bind=engine)
 
 
@@ -41,28 +36,45 @@ class Database(object):
         # DBSession = sessionmaker(bind=engine)
         self.session.add(object)
         self.session.commit()
-    
+
     def set_remind(self, meating_id):
-        info = self.session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
-        info.has_reminder= True
-        
+        info = (
+            self.session.query(Meetings)
+            .filter(Meetings.meeting_id == meating_id)
+            .first()
+        )
+        info.has_reminder = True
+
     def cancel_remind(self, meating_id):
-        info = self.session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
-        info.has_reminder= False
-    
+        info = (
+            self.session.query(Meetings)
+            .filter(Meetings.meeting_id == meating_id)
+            .first()
+        )
+        info.has_reminder = False
+
     def reminder_state(self, meating_id):
-        info = self.session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
-        if info.has_reminder == True :
-            return True
-        else :
-            return False
-   
+        info = (
+            self.session.query(Meetings)
+            .filter(Meetings.meeting_id == meating_id)
+            .first()
+        )
+
+        return info.has_reminder
+
     def commit(self):
         self.session.commit()
 
     def get_team(self, team_id):
         team = self.session.query(Teams).filter(Teams.team_id == team_id).first()
+        if team is None:
+            team = Teams(team_id)
+            self.insert(team)
+
         return team
+
+    def get_user(self, user_id):
+        return self.session.query(Users).filter(Users.user_id == user_id).first()
 
     # return all meeting objects given team_id
     def get_all_meetings(self, team_id):
@@ -70,7 +82,7 @@ class Database(object):
             self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
         )
         return meetings
-        
+
     def get_all_my_meetings(self):
         meetings = self.session.query(Meetings).all()
         return meetings

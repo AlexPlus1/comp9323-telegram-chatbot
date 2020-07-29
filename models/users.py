@@ -1,7 +1,7 @@
 # Users class
 # M to M to Teams and Tasks
 
-from sqlalchemy import Column, String, Integer, Date, Table, ForeignKey
+from sqlalchemy import Column, String, Integer, Table, ForeignKey
 from sqlalchemy.orm import relationship
 from models.base import Base
 
@@ -23,10 +23,11 @@ users_tasks_association = Table(
 class Users(Base):
     __tablename__ = "Users"
 
+    # Attributes
     user_id = Column(Integer, primary_key=True)
     name = Column(String)
+    username = Column(String)
+
+    # Relationships
     teams = relationship("Teams", secondary=users_teams_association)
     tasks = relationship("Tasks", secondary=users_tasks_association)
-
-    def __init__(self, name):
-        self.name = name

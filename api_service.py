@@ -40,21 +40,18 @@ def get_intent(session_id, text) -> IntentResult:
     query_result = response.query_result
     intent = query_result.intent.display_name
     params = None
+    all_params_present = True
 
     if intent == consts.SCHEDULE_MEETING:
         params = get_schedule_meeting_params(query_result.parameters)
     elif intent in {consts.STORE_NOTES, consts.GET_NOTES}:
         params = {"datetime": get_datetime(query_result.parameters)}
-    # meeting list
-    elif intent == consts.MEETING_LIST:
-        params = None
-    elif intent == consts.CANCEL_REMINDER:
-        params = None
+
+    if params is not None:
+        all_params_present = check_params_present(params)
+
     result = IntentResult(
-        intent,
-        params,
-        query_result.all_required_params_present,
-        query_result.fulfillment_text,
+        intent, params, all_params_present, query_result.fulfillment_text,
     )
 
     return result
@@ -78,7 +75,7 @@ def get_schedule_meeting_params(params):
         duration = params["duration"]["amount"]
         if params["duration"]["unit"] == "h":
             duration *= 60
-    if params["reminder"]:
+    if "reminder" in params and params["reminder"]:
         reminder = params["reminder"]
 
     result = {
@@ -100,3 +97,13 @@ def get_datetime(params):
         datetime = date.replace(hour=time.hour, minute=time.minute)
 
     return datetime
+
+
+def check_params_present(params):
+    all_present = True
+    for key, val in params.items():
+        if val is None:
+            all_present = False
+            break
+
+    return all_present
