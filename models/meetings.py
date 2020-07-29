@@ -1,6 +1,7 @@
 # Meetints class
 # M to 1 Teams
 import arrow
+import textwrap
 
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
@@ -31,11 +32,11 @@ class Meetings(Base):
         suggestion = None
         if self.teams.suggestions:
             suggestion = f"""
-                You have a meeting scheduled for {self.datetime}
+                You have a meeting scheduled for {self.formatted_datetime()}\n
                 Here are suggestions for your meeting:
                 1.  Take notes and upload any notes from the meeting
                 2.  Create and assign new tasks
                 3.  Update details for discussed tasks
                 4.  Schedule a follow-up meeting
             """
-        return suggestion
+        return textwrap.dedent(suggestion)

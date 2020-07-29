@@ -253,18 +253,19 @@ def meeting_reminder_intent(context, message):
         message.reply_text(
             "A reminder has been set.", reply_markup=ReplyKeyboardRemove()
         )
+        message.reply_text(meeting.meeting_suggestion())
 
 
 def meeting_no_reminder_intent(context, message):
-    message.reply_text(
-        "Let me know if you'll like to set a reminder later",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-    try:
+    if consts.SCHEDULE_MEETING in context.user_data:
+        meeting = context.user_data[consts.SCHEDULE_MEETING]
         del context.user_data[consts.SCHEDULE_MEETING]
-    except KeyError:
-        pass
+
+        message.reply_text(
+            "Let me know if you'll like to set a reminder later.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        message.reply_text(meeting.meeting_suggestion())
 
 
 def list_meetings_intent(message, intent):
