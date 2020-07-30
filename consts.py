@@ -10,4 +10,4 @@ GET_NOTES = "meeting.notes.get"
 CANCEL_REMINDER = "change_remind"
 
 TIMEZONE = "Australia/Sydney"
-DATETIME_FORMAT = "Do MMM, YYYY h:mm A"
+DATETIME_FORMAT = "ddd D MMM, YYYY h:mm A"

@@ -5,35 +5,25 @@ import os
 from dotenv import load_dotenv
 from telegram import (
     ChatAction,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
     ParseMode,
     KeyboardButton,
     ReplyKeyboardMarkup,
-    ReplyKeyboardRemove,
 )
 from telegram.ext import (
     Updater,
     CommandHandler,
     MessageHandler,
     Filters,
-    ConversationHandler,
     CallbackContext,
     CallbackQueryHandler,
 )
 import arrow
 
 import consts
+import dojobot
 from db import DATABASE
 from api_service import get_intent
-from models import Meetings, Users
-from dojobot.notes import (
-    store_notes_doc,
-    store_notes_intent,
-    get_notes_intent,
-    store_notes_callback,
-    get_notes_callback,
-)
+from models import Users
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -65,22 +55,30 @@ def main():
 
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_msg))
-    dp.add_handler(MessageHandler(Filters.document, store_notes_doc))
+    dp.add_handler(MessageHandler(Filters.document, dojobot.store_notes_doc))
 
     # show schedule and change remind
-    dp.add_handler(CallbackQueryHandler(remind_main_menu, pattern="remind_main"))
+    dp.add_handler(
+        CallbackQueryHandler(dojobot.remind_main_menu, pattern="remind_main")
+    )
     # dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern='remind_sub'))
 
-    dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern=r"rf.*"))
-    dp.add_handler(CallbackQueryHandler(change_remind, pattern=r"cr.*"))
+    dp.add_handler(CallbackQueryHandler(dojobot.remind_first_menu, pattern=r"rf.*"))
+    dp.add_handler(CallbackQueryHandler(dojobot.change_remind, pattern=r"cr.*"))
     # dp.add_handler(CallbackQueryHandler(cancel_redmind, pattern=r'cr.*'))
     # dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))
-    dp.add_handler(CallbackQueryHandler(cancel_del, pattern="cancel_change_reminder"))
     dp.add_handler(
-        CallbackQueryHandler(store_notes_callback, pattern=rf"{consts.STORE_NOTES}.*")
+        CallbackQueryHandler(dojobot.cancel_del, pattern="cancel_change_reminder")
     )
     dp.add_handler(
-        CallbackQueryHandler(get_notes_callback, pattern=rf"{consts.GET_NOTES}.*")
+        CallbackQueryHandler(
+            dojobot.store_notes_callback, pattern=rf"{consts.STORE_NOTES}.*"
+        )
+    )
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.get_notes_callback, pattern=rf"{consts.GET_NOTES}.*"
+        )
     )
 
     # Start the Bot
@@ -169,119 +167,23 @@ def handle_text_msg(update, context):
 
     # if mssage for meeting scheduled is given
     if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
-        schedule_meeting_intent(context, message, intent)
+        dojobot.schedule_meeting_intent(context, message, intent)
     elif intent.intent == consts.MEETING_REMINDER:
-        meeting_reminder_intent(context, message)
+        dojobot.meeting_reminder_intent(context, message)
     elif intent.intent == consts.MEETING_NO_REMIDNER:
-        meeting_no_reminder_intent(context, message)
+        dojobot.meeting_no_reminder_intent(context, message)
     elif intent.intent == consts.MEETING_LIST:
-        list_meetings_intent(message, intent)
+        dojobot.list_meetings_intent(message, intent)
     elif intent.intent == consts.STORE_NOTES:
-        store_notes_intent(context, message, intent)
+        dojobot.store_notes_intent(context, message, intent)
     elif intent.intent == consts.GET_NOTES:
-        get_notes_intent(update, context, intent)
+        dojobot.get_notes_intent(update, context, intent)
     elif intent.intent == consts.CANCEL_REMINDER:
-        change_reminder_intent(message, intent)
+        dojobot.change_reminder_intent(message, intent)
     else:
         message.reply_text(intent.fulfill_text)
 
 
-def schedule_meeting_intent(context, message, intent):
-    if intent.params["datetime"] < arrow.now():
-        message.reply_text("Can't schedule a meeting in the past")
-    else:
-        if not check_meeting_conflict(message, intent):
-            new_meeting = Meetings(
-                datetime=intent.params["datetime"].to("UTC"),
-                duration=int(intent.params["duration"]),
-                teams=DATABASE.get_team(message.chat.id),
-            )
-            DATABASE.insert(new_meeting)
-            context.user_data[consts.SCHEDULE_MEETING] = new_meeting
-
-            reply = "Your meeting has been scheduled on <b>{}</b> for <b>{} minutes</b>.".format(
-                new_meeting.formatted_datetime(), int(intent.params["duration"]),
-            )
-            message.reply_text(reply, parse_mode=ParseMode.HTML)
-
-            keyboard = [[KeyboardButton("Yes"), KeyboardButton("No")]]
-            reply_markup = ReplyKeyboardMarkup(
-                keyboard, resize_keyboard=True, one_time_keyboard=True
-            )
-            message.reply_text(
-                "Do you want to set a reminder for this meeting?",
-                quote=False,
-                reply_markup=reply_markup,
-            )
-
-
-def check_meeting_conflict(message, intent):
-    end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
-    meetings = DATABASE.get_all_meetings(message.chat_id)
-    is_conflict = False
-
-    if meetings:
-        for meeting in meetings:
-            tmp_start = meeting.datetime
-            tmp_end = tmp_start.shift(minutes=meeting.duration)
-            if end <= tmp_start or intent.params["datetime"] >= tmp_end:
-                continue
-            else:
-                is_conflict = True
-                tmp_time = tmp_start.to(consts.TIMEZONE).format(consts.DATETIME_FORMAT)
-                message.reply_text(
-                    "Can't schedule this meeting, time conflicting with meeting at <b>{}</b> lasting for <b>{} minutes</b>.".format(
-                        tmp_time, meeting.duration
-                    ),
-                    parse_mode=ParseMode.HTML,
-                )
-                break
-
-    return is_conflict
-
-
-def meeting_reminder_intent(context, message):
-    if consts.SCHEDULE_MEETING in context.user_data:
-        meeting = context.user_data[consts.SCHEDULE_MEETING]
-        meeting.has_reminder = True
-        DATABASE.commit()
-        del context.user_data[consts.SCHEDULE_MEETING]
-
-        message.reply_text(
-            "A reminder has been set.", reply_markup=ReplyKeyboardRemove()
-        )
-        message.reply_text(meeting.meeting_suggestion())
-
-
-def meeting_no_reminder_intent(context, message):
-    if consts.SCHEDULE_MEETING in context.user_data:
-        meeting = context.user_data[consts.SCHEDULE_MEETING]
-        del context.user_data[consts.SCHEDULE_MEETING]
-
-        message.reply_text(
-            "Let me know if you'll like to set a reminder later.",
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        message.reply_text(meeting.meeting_suggestion())
-
-
-def list_meetings_intent(message, intent):
-    meetings = DATABASE.get_all_meetings(message.chat_id)
-    reply = intent.fulfill_text + "\n"
-    if meetings:
-        i = 1
-        for meeting in meetings:
-            tmp = "\n{}: {} for {} minutes".format(
-                i, meeting.formatted_datetime(), meeting.duration
-            )
-            reply += tmp
-            i += 1
-        message.reply_text(reply)
-    else:
-        message.reply_text("There's no upcoming meetings")
-
-
-###############################  REMINDER ############################################
 def check_meeting_reminder(context: CallbackContext):
     meetings = DATABASE.get_all_my_meetings()
     for m in meetings:
@@ -303,116 +205,6 @@ def check_meeting_reminder(context: CallbackContext):
                 context.bot.send_message(
                     chat_id=m.teams_id, text="Your meeting will start soon!"
                 )
-
-
-def change_reminder_intent(message, intent):
-    datetime = intent.params["datetime"]
-    if datetime is not None:
-        meeting = DATABASE.get_meeting_by_time(message.chat.id, datetime)
-        if meeting is None:
-            message.reply_text(
-                "No meeting found with the given date and time. Please try again."
-            )
-        else:
-            if meeting.has_reminder:
-                status = "on"
-                button = "Turn off"
-            else:
-                status = "off"
-                button = "Turn on"
-
-            keyboard = [
-                [InlineKeyboardButton(button, callback_data=f"cr{meeting.meeting_id}")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            message.reply_text(
-                text=f"Reminder is currently <b>turned {status}</b>",
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML,
-            )
-    else:
-        message.reply_text(
-            text="Choose the option in main menu:",
-            reply_markup=remind_main_menu_keyboard(),
-        )
-
-
-def change_remind(update, context):
-
-    query = update.callback_query
-    temp = query.data[2:]
-    query.answer()
-    check = DATABASE.reminder_state(temp)
-    if check:
-        temp_text = "You've turned off the reminder!"
-        DATABASE.cancel_remind(temp)
-    else:
-        temp_text = "You've turned on the reminder!"
-        DATABASE.set_remind(temp)
-
-    query.edit_message_text(text=temp_text)
-    return ConversationHandler.END
-
-
-def cancel_del(update, context):
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(text="What else can I do for you?")
-    return ConversationHandler.END
-
-
-###############################  MENU ############################################
-def remind_main_menu(update, context):
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(
-        text="Choose the meeting:", reply_markup=remind_main_menu_keyboard()
-    )
-
-
-def remind_main_menu_keyboard():
-    meetings = DATABASE.get_all_my_meetings()
-    keyboard = []
-    for meeting in meetings:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    meeting.formatted_datetime(),
-                    callback_data=f"rf{meeting.meeting_id}",
-                )
-            ]
-        )
-    keyboard.append(
-        [InlineKeyboardButton("Cancel", callback_data="cancel_change_reminder")]
-    )
-    return InlineKeyboardMarkup(keyboard)
-
-
-def remind_first_menu(update, context):
-    query = update.callback_query
-    query.answer()
-    temp = query.data[2:]
-    check = DATABASE.reminder_state(temp)
-
-    if check:
-        status = "on"
-    else:
-        status = "off"
-    query.edit_message_text(
-        text=f"Reminder is currently <b>turned {status}</b>",
-        reply_markup=remind_first_menu_keyboard(temp, check),
-        parse_mode=ParseMode.HTML,
-    )
-
-
-def remind_first_menu_keyboard(temp, check):
-    keyboard = [InlineKeyboardButton("Go back", callback_data="remind_main")]
-    if check:
-        keyboard.append(InlineKeyboardButton("Turn off", callback_data=f"cr{temp}"))
-    else:
-        keyboard.append(InlineKeyboardButton("Turn on", callback_data=f"cr{temp}"))
-
-    return InlineKeyboardMarkup([keyboard])
 
 
 if __name__ == "__main__":
