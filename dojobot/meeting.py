@@ -89,9 +89,14 @@ def meeting_no_reminder_intent(context, message):
 def list_meetings_intent(message, intent):
     meetings = DATABASE.get_all_meetings(message.chat_id)
     reply = intent.fulfill_text + "\n"
+    now = arrow.now()
+
     if meetings:
         i = 1
         for meeting in meetings:
+            if meeting.datetime < now:
+                continue
+
             tmp = "\n{}: {} for {} mins".format(
                 i, meeting.formatted_datetime(), meeting.duration
             )
