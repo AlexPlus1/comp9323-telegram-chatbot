@@ -1,5 +1,3 @@
-import arrow
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 
 import consts
@@ -24,19 +22,20 @@ def store_notes_with_datetime(context, message, datetime):
         if meeting.notes:
             context.user_data[consts.CONFIRM_STORE_NOTES] = True
             message.reply_text(
-                "A meeting notes file already exists for this meeting, do you want to replace it?",
-                reply_markup=store_notes_confirm_keyboard(datetime),
+                "A meeting notes file already exists for this meeting, "
+                "do you want to replace it?",
+                reply_markup=store_notes_confirm_keyboard(meeting.meeting_id),
             )
         else:
             context.user_data[consts.STORE_NOTES] = meeting
             message.reply_text("Please send me the meeting notes file.")
 
 
-def store_notes_confirm_keyboard(datetime):
+def store_notes_confirm_keyboard(meeting_id):
     keyboard = [
         [
             InlineKeyboardButton(
-                "Yes", callback_data=f"{consts.STORE_NOTES},{datetime.format()}",
+                "Yes", callback_data=f"{consts.STORE_NOTES},{meeting_id}",
             ),
             InlineKeyboardButton("No", callback_data=f"{consts.STORE_NOTES},no",),
         ]
@@ -54,7 +53,7 @@ def store_notes_without_datetime(message):
             [
                 InlineKeyboardButton(
                     meeting.formatted_datetime(),
-                    callback_data=f"{consts.STORE_NOTES},{meeting.datetime.format()}",
+                    callback_data=f"{consts.STORE_NOTES},{meeting.meeting_id}",
                 )
             ]
         )
@@ -66,6 +65,41 @@ def store_notes_without_datetime(message):
     )
 
 
+def store_notes_callback(update, context):
+    query = update.callback_query
+    query.answer()
+    _, meeting_id = query.data.split(",")
+
+    if meeting_id == "no":
+        query.edit_message_text("Cancelled for storing meeting notes")
+        if consts.CONFIRM_STORE_NOTES in context.user_data:
+            del context.user_data[consts.CONFIRM_STORE_NOTES]
+    else:
+        edit_store_notes_msg(context, query, meeting_id)
+
+
+def edit_store_notes_msg(context, query, meeting_id):
+    meeting = DATABASE.get_meeting_by_id(meeting_id)
+    if consts.CONFIRM_STORE_NOTES in context.user_data:
+        del context.user_data[consts.CONFIRM_STORE_NOTES]
+        if meeting is None:
+            query.edit_message_text("The meeting is invalid. Please try again.")
+        else:
+            context.user_data[consts.STORE_NOTES] = meeting
+            query.edit_message_text("Please send me the meeting notes file.")
+    else:
+        if meeting.notes:
+            context.user_data[consts.CONFIRM_STORE_NOTES] = True
+            query.edit_message_text(
+                "A meeting notes file already exists for this meeting, "
+                "do you want to replace it?",
+                reply_markup=store_notes_confirm_keyboard(meeting_id),
+            )
+        else:
+            context.user_data[consts.STORE_NOTES] = meeting
+            query.edit_message_text("Please send me the meeting notes file.")
+
+
 def store_notes_doc(update, context):
     if consts.STORE_NOTES in context.user_data:
         message = update.effective_message
@@ -73,7 +107,8 @@ def store_notes_doc(update, context):
         meeting.notes = message.document.file_id
         DATABASE.commit()
         update.effective_message.reply_text(
-            f"<b>{message.document.file_name}</b> has been stored as the notes for the meeting on <b>{meeting.formatted_datetime()}</b>",
+            f"<b>{message.document.file_name}</b> has been stored "
+            f"as the notes for the meeting on <b>{meeting.formatted_datetime()}</b>",
             parse_mode=ParseMode.HTML,
         )
         del context.user_data[consts.STORE_NOTES]
@@ -112,7 +147,7 @@ def get_notes_without_datetime(message):
                 [
                     InlineKeyboardButton(
                         meeting.formatted_datetime(),
-                        callback_data=f"{consts.GET_NOTES},{meeting.datetime.format()}",
+                        callback_data=f"{consts.GET_NOTES},{meeting.meeting_id}",
                     )
                 ]
             )
@@ -124,49 +159,11 @@ def get_notes_without_datetime(message):
     )
 
 
-def store_notes_callback(update, context):
-    query = update.callback_query
-    query.answer()
-    _, data = query.data.split(",")
-
-    if data == "no":
-        query.edit_message_text("Cancelled for storing meeting notes")
-        if consts.CONFIRM_STORE_NOTES in context.user_data:
-            del context.user_data[consts.CONFIRM_STORE_NOTES]
-    else:
-        edit_store_notes_msg(context, query, data)
-
-
-def edit_store_notes_msg(context, query, data):
-    datetime = arrow.get(data)
-    meeting = DATABASE.get_meeting_by_time(query.message.chat_id, datetime)
-
-    if consts.CONFIRM_STORE_NOTES in context.user_data:
-        del context.user_data[consts.CONFIRM_STORE_NOTES]
-        if meeting is None:
-            query.edit_message_text("The meeting is invalid. Please try again.")
-        else:
-            context.user_data[consts.STORE_NOTES] = meeting
-            query.edit_message_text("Please send me the meeting notes file.")
-    else:
-        if meeting.notes:
-            context.user_data[consts.CONFIRM_STORE_NOTES] = True
-            query.edit_message_text(
-                "A meeting notes file already exists for this meeting, do you want to replace it?",
-                reply_markup=store_notes_confirm_keyboard(datetime),
-            )
-        else:
-            context.user_data[consts.STORE_NOTES] = meeting
-            query.edit_message_text("Please send me the meeting notes file.")
-
-
 def get_notes_callback(update, context):
     query = update.callback_query
     query.answer()
-    _, data = query.data.split(",")
-
-    datetime = arrow.get(data)
-    meeting = DATABASE.get_meeting_by_time(query.message.chat_id, datetime)
+    _, meeting_id = query.data.split(",")
+    meeting = DATABASE.get_meeting_by_id(meeting_id)
 
     if meeting is None:
         query.edit_message_text("The meeting is invalid. Please try again.")

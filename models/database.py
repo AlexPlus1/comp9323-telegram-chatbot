@@ -87,6 +87,13 @@ class Database(object):
         meetings = self.session.query(Meetings).all()
         return meetings
 
+    def get_meeting_by_id(self, meeting_id):
+        return (
+            self.session.query(Meetings)
+            .filter(Meetings.meeting_id == meeting_id)
+            .first()
+        )
+
     # return all meeting objects given team_id and meeting_datetime
     def get_meeting_by_time(self, team_id, meeting_datetime):
         meeting = (
