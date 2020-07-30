@@ -315,10 +315,10 @@ def change_remind(update, context):
     query.answer()
     check = DATABASE.reminder_state(temp)
     if check:
-        temp_text = "You have cancelled the reminder!"
+        temp_text = "You've turned off the reminder!"
         DATABASE.cancel_remind(temp)
     else:
-        temp_text = "You have set the reminder!"
+        temp_text = "You've turned on the reminder!"
         DATABASE.set_remind(temp)
 
     query.edit_message_text(text=temp_text)
@@ -354,11 +354,7 @@ def remind_main_menu_keyboard():
             ]
         )
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "I dont want to change reminder", callback_data="cancel_change_reminder"
-            )
-        ]
+        [InlineKeyboardButton("Cancel", callback_data="cancel_change_reminder")]
     )
     return InlineKeyboardMarkup(keyboard)
 
@@ -368,22 +364,26 @@ def remind_first_menu(update, context):
     query.answer()
     temp = query.data[2:]
     check = DATABASE.reminder_state(temp)
-    if check == True:
-        reminder = "reminider state: on"
+
+    if check:
+        status = "on"
     else:
-        reminder = "reminider state: off"
+        status = "off"
     query.edit_message_text(
-        text=reminder, reply_markup=remind_first_menu_keyboard(temp)
+        text=f"Reminder is currently <b>turned {status}</b>",
+        reply_markup=remind_first_menu_keyboard(temp, check),
+        parse_mode=ParseMode.HTML,
     )
 
 
-def remind_first_menu_keyboard(temp):
-    keyboard = [
-        [InlineKeyboardButton("cancel reminder", callback_data=f"cr{temp}")],
-        [InlineKeyboardButton("set reminder", callback_data=f"cr{temp}")],
-        [InlineKeyboardButton("schedules", callback_data="remind_main")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
+def remind_first_menu_keyboard(temp, check):
+    keyboard = [InlineKeyboardButton("Go back", callback_data="remind_main")]
+    if check:
+        keyboard.append(InlineKeyboardButton("Turn off", callback_data=f"cr{temp}"))
+    else:
+        keyboard.append(InlineKeyboardButton("Turn on", callback_data=f"cr{temp}"))
+
+    return InlineKeyboardMarkup([keyboard])
 
 
 if __name__ == "__main__":
