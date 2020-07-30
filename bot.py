@@ -181,10 +181,7 @@ def handle_text_msg(update, context):
     elif intent.intent == consts.GET_NOTES:
         get_notes_intent(update, context, intent)
     elif intent.intent == consts.CANCEL_REMINDER:
-        update.message.reply_text(
-            text="Choose the option in main menu:",
-            reply_markup=remind_main_menu_keyboard(),
-        )
+        change_reminder_intent(message, intent)
     else:
         message.reply_text(intent.fulfill_text)
 
@@ -306,6 +303,38 @@ def check_meeting_reminder(context: CallbackContext):
                 context.bot.send_message(
                     chat_id=m.teams_id, text="Your meeting will start soon!"
                 )
+
+
+def change_reminder_intent(message, intent):
+    datetime = intent.params["datetime"]
+    if datetime is not None:
+        meeting = DATABASE.get_meeting_by_time(message.chat.id, datetime)
+        if meeting is None:
+            message.reply_text(
+                "No meeting found with the given date and time. Please try again."
+            )
+        else:
+            if meeting.has_reminder:
+                status = "on"
+                button = "Turn off"
+            else:
+                status = "off"
+                button = "Turn on"
+
+            keyboard = [
+                [InlineKeyboardButton(button, callback_data=f"cr{meeting.meeting_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            message.reply_text(
+                text=f"Reminder is currently <b>turned {status}</b>",
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML,
+            )
+    else:
+        message.reply_text(
+            text="Choose the option in main menu:",
+            reply_markup=remind_main_menu_keyboard(),
+        )
 
 
 def change_remind(update, context):
