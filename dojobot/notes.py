@@ -1,3 +1,5 @@
+import arrow
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 
 import consts
@@ -19,16 +21,22 @@ def store_notes_with_datetime(context, message, datetime):
             "No meeting found with the given date and time. Please try again."
         )
     else:
-        if meeting.notes:
-            context.user_data[consts.CONFIRM_STORE_NOTES] = True
+        if meeting.datetime > arrow.utcnow():
             message.reply_text(
-                "A meeting notes file already exists for this meeting, "
-                "do you want to replace it?",
-                reply_markup=store_notes_confirm_keyboard(meeting.meeting_id),
+                "Your meeting hasn't started yet, you can only store notes "
+                "after you've finished your meeting."
             )
         else:
-            context.user_data[consts.STORE_NOTES] = meeting
-            message.reply_text("Please send me the meeting notes file.")
+            if meeting.notes:
+                context.user_data[consts.CONFIRM_STORE_NOTES] = True
+                message.reply_text(
+                    "A meeting notes file already exists for this meeting, "
+                    "do you want to replace it?",
+                    reply_markup=store_notes_confirm_keyboard(meeting.meeting_id),
+                )
+            else:
+                context.user_data[consts.STORE_NOTES] = meeting
+                message.reply_text("Please send me the meeting notes file.")
 
 
 def store_notes_confirm_keyboard(meeting_id):
@@ -49,20 +57,27 @@ def store_notes_without_datetime(message):
     keyboard = []
 
     for meeting in meetings:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    meeting.formatted_datetime(),
-                    callback_data=f"{consts.STORE_NOTES},{meeting.meeting_id}",
-                )
-            ]
-        )
+        if meeting.datetime <= arrow.utcnow():
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        meeting.formatted_datetime(),
+                        callback_data=f"{consts.STORE_NOTES},{meeting.meeting_id}",
+                    )
+                ]
+            )
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    message.reply_text(
-        "Please select the meeting that you'll like to store the notes.",
-        reply_markup=reply_markup,
-    )
+    if keyboard:
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message.reply_text(
+            "Please select the meeting that you'll like to store the notes.",
+            reply_markup=reply_markup,
+        )
+    else:
+        message.reply_text(
+            "You haven't scheduled any meetings or your "
+            "scheduled meetings haven't passed yet."
+        )
 
 
 def store_notes_callback(update, context):

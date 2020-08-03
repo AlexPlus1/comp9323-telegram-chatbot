@@ -89,19 +89,20 @@ def meeting_no_reminder_intent(context, message):
 def list_meetings_intent(message, intent):
     meetings = DATABASE.get_all_meetings(message.chat_id)
     reply = intent.fulfill_text + "\n"
-    now = arrow.now()
+    now = arrow.utcnow()
+    has_meetings = False
+    i = 1
 
-    if meetings:
-        i = 1
-        for meeting in meetings:
-            if meeting.datetime < now:
-                continue
-
+    for meeting in sorted(meetings, key=lambda x: x.datetime):
+        if meeting.datetime >= now:
+            has_meetings = True
             tmp = "\n{}: {} for {} mins".format(
                 i, meeting.formatted_datetime(), meeting.duration
             )
             reply += tmp
             i += 1
+
+    if has_meetings:
         message.reply_text(reply)
     else:
         message.reply_text("There's no upcoming meetings")
