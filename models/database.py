@@ -23,10 +23,8 @@ class Database(object):
         self.session = DB_Session()
 
     def create_table(self):
-        try:
-            Base.metadata.create_all(engine)
-        except:
-            print("Table already there.")
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
 
     # insert an object to db
     def insert(self, object):

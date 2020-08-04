@@ -1,6 +1,6 @@
 import arrow
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 import consts
 from db import DATABASE
@@ -113,20 +113,6 @@ def edit_store_notes_msg(context, query, meeting_id):
         else:
             context.user_data[consts.STORE_NOTES] = meeting
             query.edit_message_text("Please send me the meeting notes file.")
-
-
-def store_notes_doc(update, context):
-    if consts.STORE_NOTES in context.user_data:
-        message = update.effective_message
-        meeting = context.user_data[consts.STORE_NOTES]
-        meeting.notes = message.document.file_id
-        DATABASE.commit()
-        update.effective_message.reply_text(
-            f"<b>{message.document.file_name}</b> has been stored "
-            f"as the notes for the meeting on <b>{meeting.formatted_datetime()}</b>",
-            parse_mode=ParseMode.HTML,
-        )
-        del context.user_data[consts.STORE_NOTES]
 
 
 def get_notes_intent(update, context, intent):

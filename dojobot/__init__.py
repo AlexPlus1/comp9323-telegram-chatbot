@@ -12,9 +12,14 @@ from .meeting_reminder import (
     cancel_del,
 )
 from .notes import (
-    store_notes_doc,
     store_notes_callback,
     get_notes_callback,
     store_notes_intent,
     get_notes_intent,
+)
+from .agenda import (
+    store_agenda_callback,
+    get_agenda_callback,
+    store_agenda_intent,
+    get_agenda_intent,
 )

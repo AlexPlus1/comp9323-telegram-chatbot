@@ -19,6 +19,7 @@ class Meetings(Base):
     datetime = Column(ArrowType)
     duration = Column(Integer)
     has_reminder = Column(Boolean)
+    agenda = Column(String)
     notes = Column(String)
     teams_id = Column(Integer, ForeignKey("Teams.team_id"))
     teams = relationship("Teams", backref="Meetings")

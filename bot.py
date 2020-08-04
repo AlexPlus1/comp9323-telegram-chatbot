@@ -55,7 +55,7 @@ def main():
 
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_msg))
-    dp.add_handler(MessageHandler(Filters.document, dojobot.store_notes_doc))
+    dp.add_handler(MessageHandler(Filters.document, store_document))
 
     # show schedule and change remind
     dp.add_handler(
@@ -69,6 +69,16 @@ def main():
     # dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))
     dp.add_handler(
         CallbackQueryHandler(dojobot.cancel_del, pattern="cancel_change_reminder")
+    )
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.store_agenda_callback, pattern=rf"{consts.STORE_AGENDA}.*"
+        )
+    )
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.get_agenda_callback, pattern=rf"{consts.GET_AGENDA}.*"
+        )
     )
     dp.add_handler(
         CallbackQueryHandler(
@@ -174,6 +184,10 @@ def handle_text_msg(update, context):
         dojobot.meeting_no_reminder_intent(context, message)
     elif intent.intent == consts.MEETING_LIST:
         dojobot.list_meetings_intent(message, intent)
+    elif intent.intent == consts.STORE_AGENDA:
+        dojobot.store_agenda_intent(context, message, intent)
+    elif intent.intent == consts.GET_AGENDA:
+        dojobot.get_agenda_intent(update, context, intent)
     elif intent.intent == consts.STORE_NOTES:
         dojobot.store_notes_intent(context, message, intent)
     elif intent.intent == consts.GET_NOTES:
@@ -205,6 +219,33 @@ def check_meeting_reminder(context: CallbackContext):
                 context.bot.send_message(
                     chat_id=m.teams_id, text="Your meeting will start soon!"
                 )
+
+
+def store_document(update, context):
+    message = update.effective_message
+    key = doc_type = None
+
+    if consts.STORE_NOTES in context.user_data:
+        key = consts.STORE_NOTES
+        doc_type = "notes"
+    elif consts.STORE_AGENDA in context.user_data:
+        key = consts.STORE_AGENDA
+        doc_type = "agenda"
+
+    if key is not None:
+        meeting = context.user_data[key]
+        if doc_type == "notes":
+            meeting.notes = message.document.file_id
+        else:
+            meeting.agenda = message.document.file_id
+
+        DATABASE.commit()
+        update.effective_message.reply_text(
+            f"<b>{message.document.file_name}</b> has been stored as the {doc_type} "
+            f"for the meeting on <b>{meeting.formatted_datetime()}</b>",
+            parse_mode=ParseMode.HTML,
+        )
+        del context.user_data[key]
 
 
 if __name__ == "__main__":
