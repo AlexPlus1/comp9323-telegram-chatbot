@@ -53,19 +53,18 @@ def store_notes_confirm_keyboard(meeting_id):
 
 
 def store_notes_without_datetime(message):
-    meetings = DATABASE.get_all_meetings(message.chat_id)
+    meetings = DATABASE.get_meetings(message.chat_id, before=arrow.utcnow())
     keyboard = []
 
     for meeting in meetings:
-        if meeting.datetime <= arrow.utcnow():
-            keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        meeting.formatted_datetime(),
-                        callback_data=f"{consts.STORE_NOTES},{meeting.meeting_id}",
-                    )
-                ]
-            )
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    meeting.formatted_datetime(),
+                    callback_data=f"{consts.STORE_NOTES},{meeting.meeting_id}",
+                )
+            ]
+        )
 
     if keyboard:
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -139,7 +138,7 @@ def get_notes_with_datetime(message, datetime):
 
 
 def get_notes_without_datetime(message):
-    meetings = DATABASE.get_all_meetings(message.chat_id)
+    meetings = DATABASE.get_meetings(message.chat_id)
     keyboard = []
 
     for meeting in meetings:

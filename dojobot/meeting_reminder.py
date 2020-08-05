@@ -1,3 +1,5 @@
+import arrow
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 
@@ -30,24 +32,29 @@ def change_reminder_intent(message, intent):
                 parse_mode=ParseMode.HTML,
             )
     else:
-        message.reply_text(
-            text="Choose the option in main menu:",
-            reply_markup=remind_main_menu_keyboard(),
-        )
+        reply_markup = remind_main_menu_keyboard(message.chat.id)
+        if reply_markup is None:
+            message.reply_text("No meetings found or your meetings are in the past")
+        else:
+            message.reply_text(
+                text="Select the meeting to change its reminder setting:",
+                reply_markup=reply_markup,
+            )
 
 
 def change_remind(update, context):
-
     query = update.callback_query
-    temp = query.data[2:]
+    meeting_id = query.data[2:]
+    chat_id = query.message.chat.id
     query.answer()
-    check = DATABASE.reminder_state(temp)
+    check = DATABASE.reminder_state(meeting_id)
+
     if check:
         temp_text = "You've turned off the reminder!"
-        DATABASE.cancel_remind(temp)
+        DATABASE.cancel_remind(meeting_id, chat_id)
     else:
         temp_text = "You've turned on the reminder!"
-        DATABASE.set_remind(temp)
+        DATABASE.set_remind(meeting_id, chat_id)
 
     query.edit_message_text(text=temp_text)
     return ConversationHandler.END
@@ -64,14 +71,22 @@ def cancel_del(update, context):
 def remind_main_menu(update, context):
     query = update.callback_query
     query.answer()
-    query.edit_message_text(
-        text="Choose the meeting:", reply_markup=remind_main_menu_keyboard()
-    )
+    reply_markup = remind_main_menu_keyboard(query.message.chat.id)
+
+    if reply_markup is None:
+        query.edit_message_text("No meetings found or your meetings are in the past")
+    else:
+        query.edit_message_text(
+            text="Select the meeting to change its reminder setting:",
+            reply_markup=reply_markup,
+        )
 
 
-def remind_main_menu_keyboard():
-    meetings = DATABASE.get_all_my_meetings()
+def remind_main_menu_keyboard(chat_id):
+    meetings = DATABASE.get_meetings(chat_id, after=arrow.utcnow())
     keyboard = []
+    reply_markup = None
+
     for meeting in meetings:
         keyboard.append(
             [
@@ -81,10 +96,14 @@ def remind_main_menu_keyboard():
                 )
             ]
         )
-    keyboard.append(
-        [InlineKeyboardButton("Cancel", callback_data="cancel_change_reminder")]
-    )
-    return InlineKeyboardMarkup(keyboard)
+
+    if keyboard:
+        keyboard.append(
+            [InlineKeyboardButton("Cancel", callback_data="cancel_change_reminder")]
+        )
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+    return reply_markup
 
 
 def remind_first_menu(update, context):

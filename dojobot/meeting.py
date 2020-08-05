@@ -38,7 +38,7 @@ def schedule_meeting_intent(context, message, intent):
 
 def check_meeting_conflict(message, intent):
     end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
-    meetings = DATABASE.get_all_meetings(message.chat_id)
+    meetings = DATABASE.get_meetings(message.chat_id)
     is_conflict = False
 
     if meetings:
@@ -64,45 +64,36 @@ def check_meeting_conflict(message, intent):
 def meeting_reminder_intent(context, message):
     if consts.SCHEDULE_MEETING in context.user_data:
         meeting = context.user_data[consts.SCHEDULE_MEETING]
-        meeting.has_reminder = True
-        DATABASE.commit()
+        DATABASE.set_remind(meeting.meeting_id, message.chat.id)
         del context.user_data[consts.SCHEDULE_MEETING]
 
         message.reply_text(
             "A reminder has been set.", reply_markup=ReplyKeyboardRemove()
         )
-        message.reply_text(meeting.meeting_suggestion())
 
 
 def meeting_no_reminder_intent(context, message):
     if consts.SCHEDULE_MEETING in context.user_data:
-        meeting = context.user_data[consts.SCHEDULE_MEETING]
         del context.user_data[consts.SCHEDULE_MEETING]
-
         message.reply_text(
             "Let me know if you'll like to set a reminder later.",
             reply_markup=ReplyKeyboardRemove(),
         )
-        message.reply_text(meeting.meeting_suggestion())
 
 
 def list_meetings_intent(message, intent):
-    meetings = DATABASE.get_all_meetings(message.chat_id)
+    meetings = DATABASE.get_meetings(message.chat_id, after=arrow.utcnow())
     reply = intent.fulfill_text + "\n"
-    now = arrow.utcnow()
-    has_meetings = False
     i = 1
 
-    for meeting in sorted(meetings, key=lambda x: x.datetime):
-        if meeting.datetime >= now:
-            has_meetings = True
-            tmp = "\n{}: {} for {} mins".format(
-                i, meeting.formatted_datetime(), meeting.duration
-            )
-            reply += tmp
-            i += 1
+    for meeting in meetings:
+        tmp = "\n{}: {} for {} mins".format(
+            i, meeting.formatted_datetime(), meeting.duration
+        )
+        reply += tmp
+        i += 1
 
-    if has_meetings:
+    if meetings:
         message.reply_text(reply)
     else:
         message.reply_text("There's no upcoming meetings")

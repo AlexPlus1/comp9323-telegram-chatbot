@@ -1,7 +1,6 @@
 # Meetints class
 # M to 1 Teams
 import arrow
-import textwrap
 
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
@@ -18,7 +17,7 @@ class Meetings(Base):
     # changed datetime, added duration
     datetime = Column(ArrowType)
     duration = Column(Integer)
-    has_reminder = Column(Boolean)
+    has_reminder = Column(Boolean, server_default="0")
     agenda = Column(String)
     notes = Column(String)
     teams_id = Column(Integer, ForeignKey("Teams.team_id"))
@@ -28,16 +27,3 @@ class Meetings(Base):
         return (
             arrow.get(self.datetime).to(consts.TIMEZONE).format(consts.DATETIME_FORMAT)
         )
-
-    def meeting_suggestion(self):
-        suggestion = None
-        if self.teams.suggestions:
-            suggestion = f"""
-                You have a meeting scheduled for {self.formatted_datetime()}\n
-                Here are suggestions for your meeting:
-                1.  Take notes and upload any notes from the meeting
-                2.  Create and assign new tasks
-                3.  Update details for discussed tasks
-                4.  Schedule a follow-up meeting
-            """
-        return textwrap.dedent(suggestion)

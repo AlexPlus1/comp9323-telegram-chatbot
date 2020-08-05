@@ -14,10 +14,8 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     Filters,
-    CallbackContext,
     CallbackQueryHandler,
 )
-import arrow
 
 import consts
 import dojobot
@@ -45,8 +43,9 @@ def main():
     # Create the Updater and pass it your bot's token.
     updater = Updater(TOKEN, use_context=True)
 
-    job = updater.job_queue
-    job.run_repeating(check_meeting_reminder, interval=300, first=0)
+    # Configure notifications job
+    job_queue = updater.job_queue
+    job_queue.run_repeating(send_notis, interval=10, first=0)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -61,12 +60,8 @@ def main():
     dp.add_handler(
         CallbackQueryHandler(dojobot.remind_main_menu, pattern="remind_main")
     )
-    # dp.add_handler(CallbackQueryHandler(remind_first_menu, pattern='remind_sub'))
-
     dp.add_handler(CallbackQueryHandler(dojobot.remind_first_menu, pattern=r"rf.*"))
     dp.add_handler(CallbackQueryHandler(dojobot.change_remind, pattern=r"cr.*"))
-    # dp.add_handler(CallbackQueryHandler(cancel_redmind, pattern=r'cr.*'))
-    # dp.add_handler(CallbackQueryHandler(set_redmind, pattern=r'sr.*'))
     dp.add_handler(
         CallbackQueryHandler(dojobot.cancel_del, pattern="cancel_change_reminder")
     )
@@ -216,27 +211,16 @@ def handle_text_msg(update, context):
         message.reply_text(intent.fulfill_text)
 
 
-def check_meeting_reminder(context: CallbackContext):
-    meetings = DATABASE.get_all_my_meetings()
-    for m in meetings:
-        if m.has_reminder:
-            temp_time = arrow.get(m.datetime)
-            cur_time = arrow.utcnow()
-            range = temp_time - cur_time
-            if 86400 <= range.seconds < 86700:
-                context.bot.send_message(
-                    chat_id=m.teams_id, text="Your meeting will start in 24 hours!"
-                )
-            elif 3600 <= range.seconds < 3900:
-                # elif  300 <= range.seconds < 340:
-                context.bot.send_message(
-                    chat_id=m.teams_id, text="Your meeting will start in an hour!"
-                )
-            elif 300 <= range.seconds < 600:
-                # elif 0 <= range.seconds < 299:
-                context.bot.send_message(
-                    chat_id=m.teams_id, text="Your meeting will start soon!"
-                )
+def send_notis(context):
+    notis = DATABASE.get_passed_notis()
+    for noti in notis:
+        context.bot.send_message(noti.chat_id, noti.text, parse_mode=ParseMode.HTML)
+        if noti.doc_id is not None:
+            context.bot.send_document(
+                noti.chat_id, noti.doc_id, caption=noti.doc_caption
+            )
+
+        DATABASE.delete(noti)
 
 
 def store_document(update, context):
@@ -256,6 +240,11 @@ def store_document(update, context):
             meeting.notes = message.document.file_id
         else:
             meeting.agenda = message.document.file_id
+
+            # Update reminder with agenda
+            if meeting.has_reminder:
+                DATABASE.cancel_remind(meeting.meeting_id, message.chat.id)
+                DATABASE.set_remind(meeting.meeting_id, message.chat.id)
 
         DATABASE.commit()
         update.effective_message.reply_text(

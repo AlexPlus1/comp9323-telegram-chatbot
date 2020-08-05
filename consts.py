@@ -15,3 +15,5 @@ CANCEL_MEETING = "meeting.cancel"
 
 TIMEZONE = "Australia/Sydney"
 DATETIME_FORMAT = "ddd D MMM, YYYY h:mm A"
+
+NOTI_MEETING = 0
