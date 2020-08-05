@@ -50,6 +50,7 @@ def get_intent(session_id, text) -> IntentResult:
         consts.STORE_NOTES,
         consts.GET_NOTES,
         consts.CANCEL_REMINDER,
+        consts.CANCEL_MEETING,
     }:
         params = {"datetime": get_datetime(query_result.parameters)}
 

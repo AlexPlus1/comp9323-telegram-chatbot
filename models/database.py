@@ -35,6 +35,10 @@ class Database(object):
         self.session.add(object)
         self.session.commit()
 
+    def delete(self, object):
+        self.session.delete(object)
+        self.session.commit()
+
     def set_remind(self, meating_id):
         info = (
             self.session.query(Meetings)

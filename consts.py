@@ -11,6 +11,7 @@ CONFIRM_STORE_NOTES = "meeting.notes.store.confirm"
 MEETING_LIST = "meeting.list"
 GET_NOTES = "meeting.notes.get"
 CANCEL_REMINDER = "change_remind"
+CANCEL_MEETING = "meeting.cancel"
 
 TIMEZONE = "Australia/Sydney"
 DATETIME_FORMAT = "ddd D MMM, YYYY h:mm A"

@@ -70,6 +70,22 @@ def main():
     dp.add_handler(
         CallbackQueryHandler(dojobot.cancel_del, pattern="cancel_change_reminder")
     )
+
+    # show schedule and cancel meeting
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.cancel_meeting_main_menu, pattern="cancel_meeting_main"
+        )
+    )
+
+    dp.add_handler(
+        CallbackQueryHandler(dojobot.cancel_meeting_first_menu, pattern=r"cf.*")
+    )
+    dp.add_handler(CallbackQueryHandler(dojobot.cancel_meeting, pattern=r"cm.*"))
+    dp.add_handler(
+        CallbackQueryHandler(dojobot.cancel_del, pattern="cancel_cancel_meeting")
+    )
+
     dp.add_handler(
         CallbackQueryHandler(
             dojobot.store_agenda_callback, pattern=rf"{consts.STORE_AGENDA}.*"
@@ -194,6 +210,8 @@ def handle_text_msg(update, context):
         dojobot.get_notes_intent(update, context, intent)
     elif intent.intent == consts.CANCEL_REMINDER:
         dojobot.change_reminder_intent(message, intent)
+    elif intent.intent == consts.CANCEL_MEETING:
+        dojobot.cancel_meeting_intent(message, intent)
     else:
         message.reply_text(intent.fulfill_text)
 
