@@ -3,12 +3,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from telegram import (
-    ChatAction,
-    ParseMode,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-)
+from telegram import ChatAction, ParseMode, KeyboardButton, ReplyKeyboardMarkup, Chat
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -121,6 +116,20 @@ def start_msg(update, context):
 
 
 def help_msg(update, context):
+    message = update.effective_message
+    text = "Please check the reply keyboard for some of the things I can do.\n\n"
+
+    if message.chat.type == Chat.PRIVATE:
+        text += (
+            "You can also add me into a group chat where I can help you "
+            "to manage your group project.\n\n"
+        )
+    else:
+        text += (
+            "To talk to me in group chats, either send your message that starts with "
+            f"@{context.bot.username} or reply to a message that I sent."
+        )
+
     keyboard = [
         [KeyboardButton("Schedule meeting"), KeyboardButton("List meetings")],
         [KeyboardButton("Store notes"), KeyboardButton("Retrieve notes")],
@@ -128,12 +137,7 @@ def help_msg(update, context):
     reply_markup = ReplyKeyboardMarkup(
         keyboard, resize_keyboard=True, one_time_keyboard=True
     )
-    update.effective_message.reply_text(
-        "Please check the reply keyboard for some of the things I can do.\n\n"
-        "You can also add me into a group chat where I can help you "
-        "to manage your group project.\n\n",
-        reply_markup=reply_markup,
-    )
+    message.reply_text(text, reply_markup=reply_markup)
 
 
 def greet_group(update, context):
@@ -183,6 +187,9 @@ def add_user_team(user, team):
 
 def handle_text_msg(update, context):
     message = update.effective_message
+    if not should_respond_message(context, message):
+        return
+
     message.chat.send_action(ChatAction.TYPING)
     intent = get_intent(message.from_user.id, message.text)
 
@@ -225,8 +232,10 @@ def send_notis(context):
 
 def store_document(update, context):
     message = update.effective_message
-    key = doc_type = None
+    if not should_respond_message(context, message):
+        return
 
+    key = doc_type = None
     if consts.STORE_NOTES in context.user_data:
         key = consts.STORE_NOTES
         doc_type = "notes"
@@ -253,6 +262,31 @@ def store_document(update, context):
             parse_mode=ParseMode.HTML,
         )
         del context.user_data[key]
+
+
+def should_respond_message(context, message):
+    """Check if bot should respond to the message
+
+    Args:
+        context (Context): the context object
+        message (Message): the message object
+
+    Returns:
+        bool: whether the bot should respond
+    """
+    return message.chat.type == Chat.PRIVATE or (
+        message.chat.type in {Chat.GROUP, Chat.SUPERGROUP}
+        and (
+            (
+                message.text is not None
+                and message.text.startswith(f"@{context.bot.username}")
+            )
+            or (
+                message.reply_to_message is not None
+                and message.reply_to_message.from_user.id == context.bot.id
+            )
+        )
+    )
 
 
 if __name__ == "__main__":
