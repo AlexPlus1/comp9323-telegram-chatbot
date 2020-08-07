@@ -125,10 +125,7 @@ def help_msg(update, context):
             "to manage your group project.\n\n"
         )
     else:
-        text += (
-            "To talk to me in group chats, either send your message that starts with "
-            f"@{context.bot.username} or reply to a message that I sent."
-        )
+        text += get_grp_help_msg(context)
 
     keyboard = [
         [KeyboardButton("Schedule meeting"), KeyboardButton("List meetings")],
@@ -138,6 +135,13 @@ def help_msg(update, context):
         keyboard, resize_keyboard=True, one_time_keyboard=True
     )
     message.reply_text(text, reply_markup=reply_markup)
+
+
+def get_grp_help_msg(context):
+    return (
+        "To talk to me in group chats, either send your message that starts with "
+        f"@{context.bot.username} or reply to a message that I sent."
+    )
 
 
 def greet_group(update, context):
@@ -163,6 +167,7 @@ def greet_group(update, context):
                 quote=False,
                 parse_mode=ParseMode.HTML,
             )
+            message.reply_text(get_grp_help_msg(context), quote=False)
             message.reply_text(
                 "Type /help if you're not sure what I can do", quote=False,
             )
