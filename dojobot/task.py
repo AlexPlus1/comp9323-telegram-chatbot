@@ -108,6 +108,7 @@ def input_summary_task(update, context):
 def cancel_creat_task(update, context):
     user_data = context.user_data
     del user_data["have_task"]
+    del user_data["new_task"]
     query = update.callback_query
     query.answer()
     query.edit_message_text(text="What else can I do for you?")
