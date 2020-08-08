@@ -276,7 +276,14 @@ class Database(object):
 
     # return all task objects given team_id
     def get_all_tasks(self, team_id):
-        tasks = self.session.query(Tasks).filter(Teams.team_id == team_id).all()
+        tasks = self.session.query(Tasks).filter(Tasks.team_id == team_id).all()
+        return tasks
+        
+        # meetings = (
+        #     self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
+        # )
+    def get_tasks(self):
+        tasks = self.session.query(Tasks).all()
         return tasks
 
     # return assigned tasks given team_id

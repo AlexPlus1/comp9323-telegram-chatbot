@@ -12,6 +12,9 @@ MEETING_LIST = "meeting.list"
 GET_NOTES = "meeting.notes.get"
 CANCEL_REMINDER = "change_remind"
 CANCEL_MEETING = "meeting.cancel"
+#---------------task---------------------
+CREATE_TASK = "create_task"
+TASK_LIST = "task.list "
 
 TIMEZONE = "Australia/Sydney"
 DATETIME_FORMAT = "ddd D MMM, YYYY h:mm A"

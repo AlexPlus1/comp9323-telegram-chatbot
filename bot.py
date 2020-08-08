@@ -10,6 +10,7 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     CallbackQueryHandler,
+    ConversationHandler,
 )
 
 import consts
@@ -17,9 +18,12 @@ import dojobot
 from db import DATABASE
 from api_service import get_intent
 from models import Users
+from models import Tasks
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+
 
 
 # Enable logging
@@ -95,6 +99,17 @@ def main():
         CallbackQueryHandler(
             dojobot.get_notes_callback, pattern=rf"{consts.GET_NOTES}.*"
         )
+    )
+    # ---------------------------task----------------------
+    # ---------------------------create task---------------
+    dp.add_handler(CallbackQueryHandler(dojobot.new_task_one, pattern="input_task"))
+    dp.add_handler(CallbackQueryHandler(dojobot.input_name_task, pattern="name_task"))
+    dp.add_handler(CallbackQueryHandler(dojobot.input_status_task, pattern="status_task"))
+    dp.add_handler(CallbackQueryHandler(dojobot.input_summary_task, pattern="summary_task"))
+    dp.add_handler(CommandHandler("edit_task", dojobot.new_task_two))
+    dp.add_handler(CommandHandler("Create_task", dojobot.task_done))
+    dp.add_handler(
+        CallbackQueryHandler(dojobot.cancel_creat_task, pattern="cancel_creat_task")
     )
 
     # Start the Bot
@@ -197,30 +212,69 @@ def handle_text_msg(update, context):
 
     message.chat.send_action(ChatAction.TYPING)
     intent = get_intent(message.from_user.id, message.text)
-
-    # if mssage for meeting scheduled is given
-    if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
-        dojobot.schedule_meeting_intent(context, message, intent)
-    elif intent.intent == consts.MEETING_REMINDER:
-        dojobot.meeting_reminder_intent(context, message)
-    elif intent.intent == consts.MEETING_NO_REMIDNER:
-        dojobot.meeting_no_reminder_intent(context, message)
-    elif intent.intent == consts.MEETING_LIST:
-        dojobot.list_meetings_intent(message, intent)
-    elif intent.intent == consts.STORE_AGENDA:
-        dojobot.store_agenda_intent(context, message, intent)
-    elif intent.intent == consts.GET_AGENDA:
-        dojobot.get_agenda_intent(update, context, intent)
-    elif intent.intent == consts.STORE_NOTES:
-        dojobot.store_notes_intent(context, message, intent)
-    elif intent.intent == consts.GET_NOTES:
-        dojobot.get_notes_intent(update, context, intent)
-    elif intent.intent == consts.CANCEL_REMINDER:
-        dojobot.change_reminder_intent(message, intent)
-    elif intent.intent == consts.CANCEL_MEETING:
-        dojobot.cancel_meeting_intent(message, intent)
-    else:
-        message.reply_text(intent.fulfill_text)
+    user_data = context.user_data
+    reply_keyboard = [['/edit_task'], ['/Create_task']]
+    task_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    # if "create_task" in user_data.keys:
+    action = 1
+    if user_data.get("have_task"):
+        # -----edit task name
+        if user_data.get("edit_name_task") == 1:
+            action = 2
+            del user_data["edit_name_task"]
+            temp_task = user_data["cur_task"]
+            temp_task.name = message.text
+            message.reply_text(f"you have change task`s name to :{temp_task.name}", reply_markup=task_markup)
+        # -----edit task status
+        if user_data.get("edit_status_task") == 1:
+            action = 2
+            del user_data["edit_status_task"]
+            temp_task = user_data["cur_task"]
+            temp_task.status = message.text
+            message.reply_text(f"you have change task`s status to :{temp_task.status}", reply_markup=task_markup)
+        # -----edit task summary
+        if user_data.get("edit_summary_task") == 1:
+            action = 2
+            del user_data["edit_summary_task"]
+            temp_task = user_data["cur_task"]
+            temp_task.summary = message.text
+            message.reply_text(f"you have change task`s summary to :{temp_task.summary}", reply_markup=task_markup)
+    if action == 1:
+        # if mssage for meeting scheduled is given
+        if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
+            dojobot.schedule_meeting_intent(context, message, intent)
+        elif intent.intent == consts.MEETING_REMINDER:
+            dojobot.meeting_reminder_intent(context, message)
+        elif intent.intent == consts.MEETING_NO_REMIDNER:
+            dojobot.meeting_no_reminder_intent(context, message)
+        elif intent.intent == consts.MEETING_LIST:
+            dojobot.list_meetings_intent(message, intent)
+        elif intent.intent == consts.STORE_AGENDA:
+            dojobot.store_agenda_intent(context, message, intent)
+        elif intent.intent == consts.GET_AGENDA:
+            dojobot.get_agenda_intent(update, context, intent)
+        elif intent.intent == consts.STORE_NOTES:
+            dojobot.store_notes_intent(context, message, intent)
+        elif intent.intent == consts.GET_NOTES:
+            dojobot.get_notes_intent(update, context, intent)
+        elif intent.intent == consts.CANCEL_REMINDER:
+            dojobot.change_reminder_intent(message, intent)
+        elif intent.intent == consts.CANCEL_MEETING:
+            dojobot.cancel_meeting_intent(message, intent)
+        elif intent.intent == consts.CREATE_TASK:
+            task = Tasks(
+                name="default name",
+                due_date=intent.params["datetime"].to("UTC"),
+                status="status",
+                summary="summary",
+                teams=DATABASE.get_team(message.chat_id),
+            )
+            user_data["cur_task"] = task
+            dojobot.create_new_task_one(context,  update)
+        elif intent.intent == consts.TASK_LIST:
+            dojobot.list_tasks_intent(update, message, intent)
+        else:
+            message.reply_text(intent.fulfill_text)
 
 
 def send_notis(context):

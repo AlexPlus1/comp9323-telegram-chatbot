@@ -51,6 +51,7 @@ def get_intent(session_id, text) -> IntentResult:
         consts.GET_NOTES,
         consts.CANCEL_REMINDER,
         consts.CANCEL_MEETING,
+        consts.CREATE_TASK,
     }:
         params = {"datetime": get_datetime(query_result.parameters)}
 
@@ -86,6 +87,8 @@ def get_schedule_meeting_params(params):
     result = {"datetime": get_datetime(params), "duration": duration}
 
     return result
+
+
 
 
 def get_datetime(params):
