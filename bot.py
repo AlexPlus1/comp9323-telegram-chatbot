@@ -131,6 +131,11 @@ def main():
             dojobot.cancel_create_task, pattern=consts.CANCEL_CREATE_TASK
         )
     )
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.update_task_callback, pattern=rf"{consts.UPDATE_TASK}.*"
+        )
+    )
 
     # Start the Bot
     updater.start_polling()
@@ -255,6 +260,8 @@ def handle_text_msg(update, context):
             dojobot.cancel_meeting_intent(message, intent)
         elif intent.intent == consts.CREATE_TASK:
             dojobot.create_task_intent(context, message, intent)
+        elif intent.intent == consts.UPDATE_TASK:
+            dojobot.update_task_intent(message)
         elif intent.intent == consts.TASK_LIST:
             dojobot.list_tasks_intent(update, message, intent)
         else:

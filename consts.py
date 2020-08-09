@@ -1,5 +1,6 @@
 BOT_NAME = "Dojo Bot"
 
+# Meeting related constants
 SCHEDULE_MEETING = "meeting.schedule"
 MEETING_REMINDER = "meeting.reminder"
 MEETING_NO_REMIDNER = "meeting.no_reminder"
@@ -13,8 +14,9 @@ GET_NOTES = "meeting.notes.get"
 CHANGE_REMIND = "change_remind"
 CANCEL_MEETING = "meeting.cancel"
 
-# ---------------task---------------------
+# Task related constants
 CREATE_TASK = "create_task"
+UPDATE_TASK = "task.update"
 TASK_LIST = "task.list"
 CURR_TASK = "curr_task"
 EDIT_TASK_NAME = "edit_task_name"

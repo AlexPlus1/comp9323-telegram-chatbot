@@ -16,9 +16,9 @@ class Tasks(Base):
     __tablename__ = "Tasks"
 
     task_id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, nullable=False)
     due_date = Column(ArrowType)
-    status = Column(String)
+    status = Column(String, nullable=False)
     summary = Column(String)
     team_id = Column(Integer, ForeignKey("Teams.team_id"))
     team = relationship("Teams", backref="Tasks")

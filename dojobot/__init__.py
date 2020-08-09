@@ -40,4 +40,6 @@ from .task import (
     cancel_create_task,
     list_tasks_intent,
     create_task,
+    update_task_intent,
+    update_task_callback
 )

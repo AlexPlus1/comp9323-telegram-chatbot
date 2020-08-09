@@ -24,21 +24,20 @@ DB_Session = sessionmaker(bind=engine)
 
 
 class Database(object):
-    def __init__(self):
-        self.session = DB_Session()
-
     def create_table(self):
         Base.metadata.drop_all(engine)
         Base.metadata.create_all(engine)
 
     # insert an object to db
     def insert(self, obj):
-        self.session.add(obj)
-        self.session.commit()
+        session = DB_Session()
+        session.add(obj)
+        session.commit()
 
     def delete(self, obj):
-        self.session.delete(obj)
-        self.session.commit()
+        session = DB_Session()
+        session.delete(obj)
+        session.commit()
 
     def set_remind(self, meeting_id, chat_id):
         """Set meeting reminder
@@ -47,15 +46,14 @@ class Database(object):
             meeting_id (int): the meeting ID
             chat_id (int): the Telegram chat ID
         """
+        session = DB_Session()
         meeting = (
-            self.session.query(Meetings)
-            .filter(Meetings.meeting_id == meeting_id)
-            .first()
+            session.query(Meetings).filter(Meetings.meeting_id == meeting_id).first()
         )
         meeting.has_reminder = True
         notis = self.get_remind_notis(meeting, chat_id)
-        self.session.add_all(notis)
-        self.session.commit()
+        session.add_all(notis)
+        session.commit()
 
     def get_remind_notis(self, meeting, chat_id):
         """Get and create meeting reminder notifications
@@ -168,36 +166,34 @@ class Database(object):
             meeting_id (int): the meeting ID
             chat_id (int): the Telegram chat ID
         """
+        session = DB_Session()
         meeting = (
-            self.session.query(Meetings)
-            .filter(Meetings.meeting_id == meeting_id)
-            .first()
+            session.query(Meetings).filter(Meetings.meeting_id == meeting_id).first()
         )
         meeting.has_reminder = False
 
         # Delete all meeting notifications associated to the given
         # meeting ID and chat ID
-        self.session.query(Notifications).filter(
+        session.query(Notifications).filter(
             Notifications.noti_type == consts.NOTI_MEETING,
             Notifications.meeting_id == meeting_id,
             Notifications.chat_id == chat_id,
         ).delete()
-        self.session.commit()
+        session.commit()
 
     def reminder_state(self, meating_id):
-        info = (
-            self.session.query(Meetings)
-            .filter(Meetings.meeting_id == meating_id)
-            .first()
-        )
+        session = DB_Session()
+        info = session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
 
         return info.has_reminder
 
     def commit(self):
-        self.session.commit()
+        session = DB_Session()
+        session.commit()
 
     def get_team(self, team_id):
-        team = self.session.query(Teams).filter(Teams.team_id == team_id).first()
+        session = DB_Session()
+        team = session.query(Teams).filter(Teams.team_id == team_id).first()
         if team is None:
             team = Teams(team_id)
             self.insert(team)
@@ -205,7 +201,8 @@ class Database(object):
         return team
 
     def get_user(self, user_id):
-        return self.session.query(Users).filter(Users.user_id == user_id).first()
+        session = DB_Session()
+        return session.query(Users).filter(Users.user_id == user_id).first()
 
     def get_meetings(self, team_id=None, before=None, after=None):
         """Get all meetings from the database with filtering options
@@ -220,7 +217,8 @@ class Database(object):
         Returns:
             list: list of meetings
         """
-        meetings = self.session.query(Meetings)
+        session = DB_Session()
+        meetings = session.query(Meetings)
         if team_id is not None:
             meetings = meetings.filter(Meetings.teams_id == team_id)
         if before is not None:
@@ -231,16 +229,14 @@ class Database(object):
         return meetings.order_by(Meetings.datetime).all()
 
     def get_meeting_by_id(self, meeting_id):
-        return (
-            self.session.query(Meetings)
-            .filter(Meetings.meeting_id == meeting_id)
-            .first()
-        )
+        session = DB_Session()
+        return session.query(Meetings).filter(Meetings.meeting_id == meeting_id).first()
 
     # return all meeting objects given team_id and meeting_datetime
     def get_meeting_by_time(self, team_id, meeting_datetime):
+        session = DB_Session()
         meeting = (
-            self.session.query(Meetings)
+            session.query(Meetings)
             .filter(Meetings.teams_id == team_id, Meetings.datetime == meeting_datetime)
             .first()
         )
@@ -248,14 +244,15 @@ class Database(object):
 
     # return the closest meeting given team_id and meeting_datetime
     def get_closest_meeting(self, team_id, meeting_datetime):
+        session = DB_Session()
         greater = (
-            self.session.query(Meetings)
+            session.query(Meetings)
             .filter(Meetings.datetime > meeting_datetime)
             .limit(1)
             .all()
         )
         lesser = (
-            self.session.query(Meetings)
+            session.query(Meetings)
             .filter(Meetings.datetime < meeting_datetime)
             .limit(1)
             .all()
@@ -274,31 +271,28 @@ class Database(object):
             else:
                 return lesser
 
-    # return all task objects given team_id
-    def get_all_tasks(self, team_id):
-        tasks = self.session.query(Tasks).filter(Tasks.team_id == team_id).all()
-        return tasks
+    def get_tasks(self, team_id):
+        session = DB_Session()
+        return session.query(Tasks).filter(Tasks.team_id == team_id).all()
 
-        # meetings = (
-        #     self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
-        # )
-
-    def get_tasks(self):
-        tasks = self.session.query(Tasks).all()
-        return tasks
+    def get_task(self, task_id):
+        session = DB_Session()
+        return session.query(Tasks).filter(Tasks.task_id == task_id).first()
 
     # return assigned tasks given team_id
     def get_assigned_tasks(self, team_id):
+        session = DB_Session()
         tasks = (
-            self.session.query(Tasks)
+            session.query(Tasks)
             .filter(Tasks.team_id == team_id, Tasks.status == "assigned")
             .all()
         )
         return tasks
 
     def get_passed_notis(self):
+        session = DB_Session()
         return (
-            self.session.query(Notifications)
+            session.query(Notifications)
             .filter(Notifications.datetime < arrow.utcnow())
             .all()
         )

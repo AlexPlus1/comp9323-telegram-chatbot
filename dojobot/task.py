@@ -151,9 +151,14 @@ def create_task(update, context):
         if task.name is None:
             text = "Task name is required, please set the task name."
         else:
+            if task.task_id is None:
+                operation = "created"
+            else:
+                operation = "updated"
+
             is_task_created = True
             DATABASE.insert(task)
-            text = "I've created the following task."
+            text = f"I've {operation} the following task."
             del context.user_data[consts.CURR_TASK]
 
     query.edit_message_text(text)
@@ -167,3 +172,40 @@ def create_task(update, context):
 
 def list_tasks_intent(update, message, intent):
     pass
+
+
+def update_task_intent(message):
+    tasks = DATABASE.get_tasks(message.chat.id)
+    keyboard = []
+
+    for task in tasks:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    f"{task.name} ({task.status})",
+                    callback_data=f"{consts.UPDATE_TASK},{task.task_id}",
+                )
+            ]
+        )
+
+    if keyboard:
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message.reply_text(
+            "Please select the task to update:", reply_markup=reply_markup
+        )
+    else:
+        message.reply_text("You don't have any tasks.")
+
+
+def update_task_callback(update, context):
+    query = update.callback_query
+    query.answer()
+    _, task_id = query.data.split(",")
+    task = DATABASE.get_task(task_id)
+
+    if task is not None:
+        context.bot.delete_message(query.message.chat.id, query.message.message_id)
+        context.user_data[consts.CURR_TASK] = task
+        ask_task_details(query.message, task)
+    else:
+        query.edit_message_text("Invalid task, please try again.")
