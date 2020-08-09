@@ -274,23 +274,25 @@ def handle_task_fields(context, message):
     task = user_data.get(consts.CURR_TASK)
 
     if task is not None:
-        is_success = True
-
         # Set task name
         if user_data.get(consts.EDIT_TASK_NAME):
+            is_success = True
             del user_data[consts.EDIT_TASK_NAME]
             task.name = message.text
             dojobot.ask_task_details(message, task)
 
         # Set task summary
         elif user_data.get(consts.EDIT_TASK_SUMMARY):
+            is_success = True
             del user_data[consts.EDIT_TASK_SUMMARY]
             task.summary = message.text
             dojobot.ask_task_details(message, task)
 
         # Set task due date
         elif user_data.get(consts.EDIT_TASK_DATE):
+            is_success = True
             intent = get_intent(message.chat.id, message.text)
+
             if (
                 intent.intent == consts.DATE_INTENT
                 and intent.params["datetime"] is not None
@@ -306,10 +308,6 @@ def handle_task_fields(context, message):
                     )
             else:
                 message.reply_text("Invalid due date, please try again.")
-
-        # No task field to be be set, clear task in memory
-        else:
-            del user_data[consts.CURR_TASK]
 
     return is_success
 
