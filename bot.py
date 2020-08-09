@@ -3,7 +3,6 @@ import arrow
 import logging
 import os
 
-from arrow.parser import ParserError
 from dotenv import load_dotenv
 from telegram import ChatAction, ParseMode, KeyboardButton, ReplyKeyboardMarkup, Chat
 from telegram.ext import (
@@ -113,6 +112,14 @@ def main():
         CallbackQueryHandler(dojobot.ask_task_summary, pattern=consts.EDIT_TASK_SUMMARY)
     )
     dp.add_handler(
+        CallbackQueryHandler(dojobot.ask_task_user, pattern=consts.EDIT_TASK_USER)
+    )
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.task_user_callback, pattern=rf"{consts.SET_TASK_USER}.*"
+        )
+    )
+    dp.add_handler(
         CallbackQueryHandler(dojobot.ask_task_status, pattern=consts.EDIT_TASK_STATUS)
     )
     dp.add_handler(
@@ -148,7 +155,14 @@ def main():
 
 
 def start_msg(update, context):
-    update.message.reply_text(
+    user = update.effective_message.from_user
+    db_user = DATABASE.get_user(user.id)
+
+    if db_user is None:
+        db_user = Users(user_id=user.id, name=user.first_name, username=user.username)
+        DATABASE.insert(db_user)
+
+    update.effective_message.reply_text(
         f"Hi! I'm {consts.BOT_NAME}. I'm here to help you to organise your "
         "group project and providing guidance along the way.\n\n"
         f"Type /help to see how to use {consts.BOT_NAME}."

@@ -1,8 +1,4 @@
-from telegram import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    ParseMode,
-)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Chat
 
 import consts
 
@@ -21,10 +17,11 @@ def ask_task_details(message, task):
         [
             InlineKeyboardButton("Name", callback_data=consts.EDIT_TASK_NAME),
             InlineKeyboardButton("Summary", callback_data=consts.EDIT_TASK_SUMMARY),
+            InlineKeyboardButton("Status", callback_data=consts.EDIT_TASK_STATUS),
         ],
         [
-            InlineKeyboardButton("Status", callback_data=consts.EDIT_TASK_STATUS),
             InlineKeyboardButton("Due Date", callback_data=consts.EDIT_TASK_DATE),
+            InlineKeyboardButton("Assignee", callback_data=consts.EDIT_TASK_USER),
         ],
         [
             InlineKeyboardButton("Cancel", callback_data=consts.CANCEL_CREATE_TASK),
@@ -41,9 +38,15 @@ def ask_task_details(message, task):
 
 
 def get_task_text(task):
+    username = None
+    if task.user_id is not None:
+        user = DATABASE.get_user(task.user_id)
+        username = f"@{user.username}"
+
     return (
         f"Name: <b>{task.name}</b>\nSummary: <b>{task.summary}</b>\n"
-        f"Status: <b>{task.status}</b>\nDue Date: <b>{task.formatted_date()}</b>"
+        f"Status: <b>{task.status}</b>\nDue Date: <b>{task.formatted_date()}</b>\n"
+        f"Assignee: <b>{username}</b>"
     )
 
 
@@ -128,6 +131,57 @@ def ask_task_date(update, context):
         text = "Invalid task, please try again."
 
     query.edit_message_text(text)
+
+
+def ask_task_user(update, context):
+    query = update.callback_query
+    query.answer()
+    reply_markup = None
+
+    if context.user_data.get(consts.CURR_TASK) is not None:
+        keyboard = []
+        reply_markup = None
+        if query.message.chat.type == Chat.PRIVATE:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        query.from_user.username,
+                        callback_data=(f"{consts.SET_TASK_USER},{query.from_user.id}"),
+                    )
+                ]
+            )
+        else:
+            users = DATABASE.get_users(query.message.chat.id)
+            for user in users:
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            user.username,
+                            callback_data=(f"{consts.SET_TASK_USER},{user.user_id}"),
+                        )
+                    ]
+                )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        text = "Please select the assignee."
+    else:
+        text = "Invalid task, please try again."
+
+    query.edit_message_text(text, reply_markup=reply_markup)
+
+
+def task_user_callback(update, context):
+    query = update.callback_query
+    query.answer()
+    _, user_id = query.data.split(",")
+    task = context.user_data.get(consts.CURR_TASK)
+
+    if task is not None:
+        task.user_id = user_id
+        context.bot.delete_message(query.message.chat.id, query.message.message_id)
+        ask_task_details(query.message, task)
+    else:
+        query.edit_message_text("Invalid task, please try again.")
 
 
 def cancel_create_task(update, context):

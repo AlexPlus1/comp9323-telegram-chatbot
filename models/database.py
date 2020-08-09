@@ -204,6 +204,10 @@ class Database(object):
         session = DB_Session()
         return session.query(Users).filter(Users.user_id == user_id).first()
 
+    def get_users(self, team_id):
+        session = DB_Session()
+        return session.query(Users).filter(Users.teams.any(team_id=team_id)).all()
+
     def get_meetings(self, team_id=None, before=None, after=None):
         """Get all meetings from the database with filtering options
 
@@ -271,13 +275,18 @@ class Database(object):
             else:
                 return lesser
 
-    def get_tasks(self, team_id):
-        session = DB_Session()
-        return session.query(Tasks).filter(Tasks.team_id == team_id).all()
-
     def get_task(self, task_id):
         session = DB_Session()
         return session.query(Tasks).filter(Tasks.task_id == task_id).first()
+
+    def get_tasks(self, team_id, status=None):
+        session = DB_Session()
+        tasks = session.query(Tasks).filter(Teams.team_id == team_id)
+
+        if status is not None:
+            tasks = tasks.filter(Tasks.status == status)
+
+        return tasks.all()
 
     # return assigned tasks given team_id
     def get_assigned_tasks(self, team_id):
@@ -288,6 +297,11 @@ class Database(object):
             .all()
         )
         return tasks
+
+    def assign_task(self, task_id, user_id):
+        task = self.session.query(Tasks).filter(Tasks.task_id == task_id).first()
+        task.user_id = user_id
+        self.session.commit()
 
     def get_passed_notis(self):
         session = DB_Session()
