@@ -29,15 +29,15 @@ from .meeting_cancel import (
     cancel_meeting_first_menu,
     cancel_meeting,
 )
-
 from .task import (
-    create_new_task_one,
-    new_task_one,
-    new_task_two,
-    input_name_task,
-    input_status_task,
-    input_summary_task,
-    cancel_creat_task,
+    create_task_intent,
+    ask_task_details,
+    ask_task_name,
+    ask_task_status,
+    task_status_callback,
+    ask_task_summary,
+    ask_task_date,
+    cancel_create_task,
     list_tasks_intent,
-    task_done,
+    create_task,
 )

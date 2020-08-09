@@ -49,9 +49,9 @@ def get_intent(session_id, text) -> IntentResult:
         consts.GET_AGENDA,
         consts.STORE_NOTES,
         consts.GET_NOTES,
-        consts.CANCEL_REMINDER,
+        consts.CHANGE_REMIND,
         consts.CANCEL_MEETING,
-        consts.CREATE_TASK,
+        consts.DATE_INTENT,
     }:
         params = {"datetime": get_datetime(query_result.parameters)}
 
@@ -89,16 +89,17 @@ def get_schedule_meeting_params(params):
     return result
 
 
-
-
 def get_datetime(params):
     date = time = datetime = None
     if "date" in params and params["date"]:
         date = arrow.get(params["date"])
     if "time" in params and params["time"]:
         time = arrow.get(params["time"])
-    if date is not None and time is not None:
-        datetime = date.replace(hour=time.hour, minute=time.minute)
+
+    if date is not None:
+        datetime = date
+        if time is not None:
+            datetime = date.replace(hour=time.hour, minute=time.minute)
 
     return datetime
 

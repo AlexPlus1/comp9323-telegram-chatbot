@@ -3,6 +3,8 @@ import arrow
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 
+import consts
+
 from db import DATABASE
 
 
@@ -44,7 +46,7 @@ def change_reminder_intent(message, intent):
 
 def change_remind(update, context):
     query = update.callback_query
-    meeting_id = query.data[2:]
+    _, meeting_id = query.data.split(",")
     chat_id = query.message.chat.id
     query.answer()
     check = DATABASE.reminder_state(meeting_id)
@@ -126,8 +128,16 @@ def remind_first_menu(update, context):
 def remind_first_menu_keyboard(temp, check):
     keyboard = [InlineKeyboardButton("Go back", callback_data="remind_main")]
     if check:
-        keyboard.append(InlineKeyboardButton("Turn off", callback_data=f"cr{temp}"))
+        keyboard.append(
+            InlineKeyboardButton(
+                "Turn off", callback_data=f"{consts.CHANGE_REMIND},{temp}"
+            )
+        )
     else:
-        keyboard.append(InlineKeyboardButton("Turn on", callback_data=f"cr{temp}"))
+        keyboard.append(
+            InlineKeyboardButton(
+                "Turn on", callback_data=f"{consts.CHANGE_REMIND},{temp}"
+            )
+        )
 
     return InlineKeyboardMarkup([keyboard])

@@ -278,10 +278,11 @@ class Database(object):
     def get_all_tasks(self, team_id):
         tasks = self.session.query(Tasks).filter(Tasks.team_id == team_id).all()
         return tasks
-        
+
         # meetings = (
         #     self.session.query(Meetings).filter(Meetings.teams_id == team_id).all()
         # )
+
     def get_tasks(self):
         tasks = self.session.query(Tasks).all()
         return tasks
@@ -290,7 +291,7 @@ class Database(object):
     def get_assigned_tasks(self, team_id):
         tasks = (
             self.session.query(Tasks)
-            .filter(Tasks.teams_id == team_id, Tasks.status == "assigned")
+            .filter(Tasks.team_id == team_id, Tasks.status == "assigned")
             .all()
         )
         return tasks
