@@ -38,15 +38,15 @@ def ask_task_details(message, task):
 
 
 def get_task_text(task):
-    username = None
+    assignee = None
     if task.user_id is not None:
         user = DATABASE.get_user(task.user_id)
-        username = f"@{user.username}"
+        assignee = user.name
 
     return (
         f"Name: <b>{task.name}</b>\nSummary: <b>{task.summary}</b>\n"
         f"Status: <b>{task.status}</b>\nDue Date: <b>{task.formatted_date()}</b>\n"
-        f"Assignee: <b>{username}</b>"
+        f"Assignee: <b>{assignee}</b>"
     )
 
 
@@ -141,10 +141,16 @@ def ask_task_user(update, context):
         keyboard = []
         reply_markup = None
         if query.message.chat.type == Chat.PRIVATE:
+            from_user = query.from_user
+            name = from_user.first_name
+
+            if from_user.username is not None:
+                name = from_user.username
+
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        query.from_user.username,
+                        name,
                         callback_data=(f"{consts.SET_TASK_USER},{query.from_user.id}"),
                     )
                 ]
@@ -155,7 +161,7 @@ def ask_task_user(update, context):
                 keyboard.append(
                     [
                         InlineKeyboardButton(
-                            user.username,
+                            user.name,
                             callback_data=(f"{consts.SET_TASK_USER},{user.user_id}"),
                         )
                     ]

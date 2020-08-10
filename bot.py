@@ -155,14 +155,13 @@ def main():
 
 
 def start_msg(update, context):
-    user = update.effective_message.from_user
-    db_user = DATABASE.get_user(user.id)
+    message = update.effective_message
+    from_user = message.from_user
+    DATABASE.add_user_team(
+        from_user.id, from_user.first_name, from_user.username, message.chat.id
+    )
 
-    if db_user is None:
-        db_user = Users(user_id=user.id, name=user.first_name, username=user.username)
-        DATABASE.insert(db_user)
-
-    update.effective_message.reply_text(
+    message.reply_text(
         f"Hi! I'm {consts.BOT_NAME}. I'm here to help you to organise your "
         "group project and providing guidance along the way.\n\n"
         f"Type /help to see how to use {consts.BOT_NAME}."
@@ -184,7 +183,7 @@ def help_msg(update, context):
     keyboard = [
         [KeyboardButton("Schedule meeting"), KeyboardButton("List meetings")],
         [KeyboardButton("Store notes"), KeyboardButton("Retrieve notes")],
-        [KeyboardButton("Create task"), KeyboardButton("List tasks")]
+        [KeyboardButton("Create task"), KeyboardButton("List tasks")],
     ]
     reply_markup = ReplyKeyboardMarkup(
         keyboard, resize_keyboard=True, one_time_keyboard=True
@@ -201,16 +200,17 @@ def get_grp_help_msg(context):
 
 def greet_group(update, context):
     message = update.effective_message
-    team = DATABASE.get_team(message.chat.id)
-
     for user in message.new_chat_members:
         if user.id == context.bot.id:
             chat_members = message.chat.get_administrators()
             names = []
 
             for chat_member in chat_members:
-                add_user_team(chat_member.user, team)
-                names.append(chat_member.user.first_name)
+                user = chat_member.user
+                DATABASE.add_user_team(
+                    user.id, user.first_name, user.username, message.chat.id
+                )
+                names.append(user.first_name)
 
             message.reply_text(
                 f"Hello everyone! I'm {consts.BOT_NAME} and "
@@ -227,22 +227,13 @@ def greet_group(update, context):
                 "Type /help if you're not sure what I can do", quote=False,
             )
         else:
-            add_user_team(user, team)
+            DATABASE.add_user_team(
+                user.id, user.first_name, user.username, message.chat.id
+            )
             message.reply_text(
                 f"Welcome {user.first_name}, I've added you to the team "
                 f"for {message.chat.title}"
             )
-
-
-def add_user_team(user, team):
-    db_user = DATABASE.get_user(user.id)
-    if db_user is None:
-        db_user = Users(user_id=user.id, name=user.first_name, username=user.username)
-        DATABASE.insert(db_user)
-
-    if not any(x.team_id == team.team_id for x in db_user.teams):
-        db_user.teams.append(team)
-        DATABASE.commit()
 
 
 def handle_text_msg(update, context):

@@ -25,9 +25,18 @@ class Users(Base):
 
     # Attributes
     user_id = Column(Integer, primary_key=True)
-    name = Column(String)
+    first_name = Column(String, nullable=False)
     username = Column(String)
 
     # Relationships
     teams = relationship("Teams", secondary=users_teams_association)
     tasks = relationship("Tasks", secondary=users_tasks_association)
+
+    @property
+    def name(self):
+        if self.username is not None:
+            name = f"@{self.username}"
+        else:
+            name = self.first_name
+
+        return name

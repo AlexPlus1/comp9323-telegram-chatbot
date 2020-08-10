@@ -212,6 +212,21 @@ class Database(object):
         session = DB_Session()
         return session.query(Users).filter(Users.teams.any(team_id=team_id)).all()
 
+    def add_user_team(self, user_id, first_name, username, team_id):
+        self.get_team(team_id)
+        session = DB_Session()
+        user = session.query(Users).filter(Users.user_id == user_id).first()
+
+        if user is None:
+            user = Users(user_id=user_id, first_name=first_name, username=username)
+            session.add(user)
+
+        team = session.query(Teams).filter(Teams.team_id == team_id).first()
+        if not any(x.team_id == team.team_id for x in user.teams):
+            user.teams.append(team)
+
+        session.commit()
+
     def get_meetings(self, team_id=None, before=None, after=None):
         """Get all meetings from the database with filtering options
 
