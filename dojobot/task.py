@@ -207,12 +207,9 @@ def create_task(update, context):
         else:
             if task.task_id is None:
                 operation = "created"
-            else:
-                operation = "updated"
-
-            if task.task_id is None:
                 DATABASE.insert(task)
             else:
+                operation = "updated"
                 DATABASE.commit()
 
             is_task_created = True
