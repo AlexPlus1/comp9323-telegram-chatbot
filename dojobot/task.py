@@ -210,8 +210,12 @@ def create_task(update, context):
             else:
                 operation = "updated"
 
+            if task.task_id is None:
+                DATABASE.insert(task)
+            else:
+                DATABASE.commit()
+
             is_task_created = True
-            DATABASE.insert(task)
             text = f"I've {operation} the following task."
             del context.user_data[consts.CURR_TASK]
 

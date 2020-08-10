@@ -12,10 +12,11 @@ def schedule_meeting_intent(context, message, intent):
         message.reply_text("Can't schedule a meeting in the past")
     else:
         if not check_meeting_conflict(message, intent):
+            DATABASE.get_team(message.chat.id)
             new_meeting = Meetings(
                 datetime=intent.params["datetime"].to("UTC"),
                 duration=int(intent.params["duration"]),
-                teams=DATABASE.get_team(message.chat.id),
+                teams_id=message.chat.id,
             )
             DATABASE.insert(new_meeting)
             context.user_data[consts.SCHEDULE_MEETING] = new_meeting
