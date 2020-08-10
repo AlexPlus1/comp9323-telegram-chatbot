@@ -191,6 +191,10 @@ class Database(object):
         session = DB_Session()
         session.commit()
 
+    def flush(self):
+        session = DB_Session()
+        session.flush()
+
     def get_team(self, team_id):
         session = DB_Session()
         team = session.query(Teams).filter(Teams.team_id == team_id).first()
@@ -281,7 +285,7 @@ class Database(object):
 
     def get_tasks(self, team_id, status=None):
         session = DB_Session()
-        tasks = session.query(Tasks).filter(Teams.team_id == team_id)
+        tasks = session.query(Tasks).filter(Tasks.team_id == team_id)
 
         if status is not None:
             tasks = tasks.filter(Tasks.status == status)

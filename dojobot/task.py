@@ -137,7 +137,6 @@ def ask_task_user(update, context):
     query = update.callback_query
     query.answer()
     reply_markup = None
-
     if context.user_data.get(consts.CURR_TASK) is not None:
         keyboard = []
         reply_markup = None
@@ -166,7 +165,6 @@ def ask_task_user(update, context):
         text = "Please select the assignee."
     else:
         text = "Invalid task, please try again."
-
     query.edit_message_text(text, reply_markup=reply_markup)
 
 
@@ -226,7 +224,19 @@ def create_task(update, context):
 
 
 def list_tasks_intent(update, message, intent):
-    pass
+    tasks = DATABASE.get_tasks(message.chat_id)
+    reply = intent.fulfill_text + "\n"
+    i = 1
+
+    for task in tasks:
+        tmp = "\n{}: {} ".format(i, get_task_text(task))
+        reply += tmp
+        i += 1
+
+    if tasks:
+        message.reply_text(reply, parse_mode=ParseMode.HTML)
+    else:
+        message.reply_text("There's no task, considering create one?")
 
 
 def update_task_intent(message):

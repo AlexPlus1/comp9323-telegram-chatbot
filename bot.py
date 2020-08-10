@@ -184,6 +184,7 @@ def help_msg(update, context):
     keyboard = [
         [KeyboardButton("Schedule meeting"), KeyboardButton("List meetings")],
         [KeyboardButton("Store notes"), KeyboardButton("Retrieve notes")],
+        [KeyboardButton("Create task"), KeyboardButton("List tasks")]
     ]
     reply_markup = ReplyKeyboardMarkup(
         keyboard, resize_keyboard=True, one_time_keyboard=True
