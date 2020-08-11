@@ -14,6 +14,7 @@ from .teams import Teams
 from .users import Users
 from .tasks import Tasks
 from .notifications import Notifications
+from .feedback import Feedback
 
 # create a database engine that stores data in the local directory's bot.db
 # a SQLAlchemy Engine that will interact with our sqlite database
@@ -308,6 +309,18 @@ class Database(object):
         session = DB_Session()
         return session.query(Tasks).filter(Tasks.task_id == task_id).first()
 
+    def set_task(self, task_id, new_task):
+        session = DB_Session()
+        task = session.query(Tasks).filter(Tasks.task_id == task_id).first()
+        task.name = new_task.name
+        task.summary = new_task.summary
+        task.status = new_task.status
+        task.due_date = new_task.due_date
+        task.user_id = new_task.user_id
+        session.commit()
+
+        return task
+
     def get_tasks(self, team_id, status=None):
         session = DB_Session()
         tasks = session.query(Tasks).filter(Tasks.team_id == team_id)
@@ -342,4 +355,32 @@ class Database(object):
             session.query(Notifications)
             .filter(Notifications.datetime < arrow.utcnow())
             .all()
+        )
+
+    def add_feedback(self, task_id, user_id, feedback_type):
+        session = DB_Session()
+        feedback = (
+            session.query(Feedback)
+            .filter(Feedback.task_id == task_id, Feedback.user_id == user_id)
+            .first()
+        )
+
+        if feedback is None:
+            feedback = Feedback(
+                feedback_type=feedback_type, task_id=task_id, user_id=user_id
+            )
+            session.add(feedback)
+        else:
+            feedback.feedback_type = feedback_type
+
+        session.commit()
+
+    def get_feedback_count(self, task_id, feedback_type):
+        return (
+            DB_Session()
+            .query(Feedback)
+            .filter(
+                Feedback.task_id == task_id, Feedback.feedback_type == feedback_type
+            )
+            .count()
         )

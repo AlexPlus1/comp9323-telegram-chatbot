@@ -24,6 +24,7 @@ class Tasks(Base):
     team = relationship("Teams", backref="Tasks")
     user_id = Column(Integer, ForeignKey("Users.user_id"))
     user = relationship("Users", backref="Tasks")
+    feedback = relationship('Feedback')
 
     def formatted_date(self):
         if self.due_date is not None:

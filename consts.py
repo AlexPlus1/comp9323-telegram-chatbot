@@ -13,6 +13,7 @@ MEETING_LIST = "meeting.list"
 GET_NOTES = "meeting.notes.get"
 CHANGE_REMIND = "change_remind"
 CANCEL_MEETING = "meeting.cancel"
+VOTE = "vote"
 
 # Task related constants
 CREATE_TASK = "create_task"
@@ -34,7 +35,14 @@ ASSIGN_TASK_USER = "task.assign.user"
 TASK_TODO = "To-Do"
 TASK_DOING = "Doing"
 TASK_DONE = "Done"
-VOTE = "vote"
+TASK_FEEDBACK = "task_feedback"
+
+THUMBSUP = 0
+SMILE = 1
+HOORAY = 2
+LOVE = 3
+ROCKET = 4
+FEEDBACK_TYPES = {THUMBSUP: "👍", SMILE: "😁", HOORAY: "🎉", LOVE: "❤️", ROCKET: "🚀"}
 
 DATE_INTENT = "date"
 

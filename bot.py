@@ -142,6 +142,11 @@ def main():
             dojobot.update_task_callback, pattern=rf"{consts.UPDATE_TASK}.*"
         )
     )
+    dp.add_handler(
+        CallbackQueryHandler(
+            dojobot.task_feedback_callback, pattern=rf"{consts.TASK_FEEDBACK}.*"
+        )
+    )
 
     # Close keyboard when poll created
     dp.add_handler(MessageHandler(Filters.poll, dojobot.vote_keyboard_remove))

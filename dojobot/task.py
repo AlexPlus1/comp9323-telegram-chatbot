@@ -7,7 +7,7 @@ from models import Tasks
 
 
 def create_task_intent(context, message, intent):
-    task = Tasks(team=DATABASE.get_team(message.chat_id), status=consts.TASK_TODO)
+    task = Tasks(team_id=message.chat_id, status=consts.TASK_TODO)
     context.user_data[consts.CURR_TASK] = task
     ask_task_details(message, task)
 
@@ -203,7 +203,7 @@ def create_task(update, context):
     query = update.callback_query
     query.answer()
     task = context.user_data.get(consts.CURR_TASK)
-    is_task_created = False
+    is_task_created = is_task_done = False
 
     if task is None:
         text = "Invalid task, please try again."
@@ -216,10 +216,10 @@ def create_task(update, context):
                 DATABASE.insert(task)
             else:
                 operation = "updated"
-                DATABASE.set_task(task.task_id, task)
-                DATABASE.commit()
+                task = DATABASE.set_task(task.task_id, task)
 
             is_task_created = True
+            is_task_done = task.status == consts.TASK_DONE
             text = f"I've {operation} the following task."
             del context.user_data[consts.CURR_TASK]
 
@@ -230,6 +230,9 @@ def create_task(update, context):
         context.bot.send_message(
             query.message.chat.id, get_task_text(task), parse_mode=ParseMode.HTML
         )
+
+    if task is not None and task.user is not None and is_task_done:
+        ask_task_feedback(context.bot, query.message.chat.id, task)
 
 
 def list_tasks_intent(update, message, intent):
@@ -246,6 +249,7 @@ def list_tasks_intent(update, message, intent):
         message.reply_text(reply, parse_mode=ParseMode.HTML)
     else:
         message.reply_text("There's no task, considering create one?")
+
 
 def list_mine_tasks_intent(update, message, intent):
     tasks = DATABASE.get_tasks_by_user(message.from_user.id)
@@ -298,3 +302,46 @@ def update_task_callback(update, context):
         ask_task_details(query.message, task)
     else:
         query.edit_message_text("Invalid task, please try again.")
+
+
+def ask_task_feedback(bot, chat_id, task):
+    keyboard = []
+    for feeback_type, emoji in consts.FEEDBACK_TYPES.items():
+        keyboard.append(
+            InlineKeyboardButton(
+                f"{emoji} 0",
+                callback_data=f"{consts.TASK_FEEDBACK},{task.task_id},{feeback_type}",
+            )
+        )
+
+    reply_markup = InlineKeyboardMarkup([keyboard])
+    bot.send_message(
+        chat_id,
+        text=(f"{task.user.name} has completed {task.name}, Great job!"),
+        reply_markup=reply_markup,
+    )
+
+
+def task_feedback_callback(update, context):
+    query = update.callback_query
+    query.answer()
+    _, task_id, user_feedback = query.data.split(",")
+    task = DATABASE.get_task(task_id)
+
+    if task is not None:
+        DATABASE.add_feedback(task.task_id, query.from_user.id, user_feedback)
+        keyboard = []
+
+        for feedback_type, emoji in consts.FEEDBACK_TYPES.items():
+            count = DATABASE.get_feedback_count(task_id, feedback_type)
+            keyboard.append(
+                InlineKeyboardButton(
+                    f"{emoji} {count}",
+                    callback_data=(
+                        f"{consts.TASK_FEEDBACK},{task.task_id},{feedback_type}"
+                    ),
+                )
+            )
+
+        reply_markup = InlineKeyboardMarkup([keyboard])
+        query.edit_message_reply_markup(reply_markup)
