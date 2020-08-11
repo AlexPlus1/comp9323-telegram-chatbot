@@ -152,7 +152,7 @@ def main():
     )
 
     # Close keyboard when poll created
-    dp.add_handler(MessageHandler(Filters.poll, dojobot.vote_keyboard_remove))
+    dp.add_handler(MessageHandler(Filters.poll, dojobot.handle_received_poll))
 
     # Start the Bot
     updater.start_polling()
@@ -333,7 +333,7 @@ def handle_intent(update, context, message, intent):
     elif intent.intent == consts.TASK_LIST:
         dojobot.list_tasks_intent(update, message, intent)
     elif intent.intent == consts.VOTE:
-        dojobot.vote_intent(message)
+        dojobot.vote_intent(context, message)
     else:
         message.reply_text(intent.fulfill_text)
 
