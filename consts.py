@@ -34,6 +34,7 @@ ASSIGN_TASK_USER = "task.assign.user"
 TASK_TODO = "To-Do"
 TASK_DOING = "Doing"
 TASK_DONE = "Done"
+VOTE = "vote"
 
 DATE_INTENT = "date"
 

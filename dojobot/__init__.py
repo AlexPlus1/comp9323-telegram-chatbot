@@ -45,3 +45,7 @@ from .task import (  # noqa
     update_task_intent,
     update_task_callback,
 )
+from .vote import (
+    vote_intent,
+    vote_keyboard_remove,
+)
