@@ -41,6 +41,7 @@ from .task import (  # noqa
     task_user_callback,
     cancel_create_task,
     list_tasks_intent,
+    list_mine_tasks_intent,
     create_task,
     update_task_intent,
     update_task_callback,

@@ -315,6 +315,8 @@ $RECYCLE.BIN/
 
 # my venc
 comp9323/
+activate/
+man/
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,linux,visualstudiocode,pycharm,python
 
 keyfile.json

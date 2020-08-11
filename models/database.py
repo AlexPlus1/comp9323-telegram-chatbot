@@ -294,6 +294,16 @@ class Database(object):
             else:
                 return lesser
 
+    def set_task(self, task_id, task):
+        session = DB_Session()
+        that_task = session.query(Tasks).filter(Tasks.task_id == task_id).first()
+        that_task.name = task.name
+        that_task.due_date = task.due_date
+        that_task.status = task.status
+        that_task.summary = task.summary
+        that_task.user_id = task.user_id
+        session.commit()
+
     def get_task(self, task_id):
         session = DB_Session()
         return session.query(Tasks).filter(Tasks.task_id == task_id).first()
@@ -307,12 +317,16 @@ class Database(object):
 
         return tasks.all()
 
+    def get_tasks_by_user(self, user_id):
+        session = DB_Session()
+        return session.query(Tasks).filter(Tasks.user_id == user_id).all()
+
     # return assigned tasks given team_id
     def get_assigned_tasks(self, team_id):
         session = DB_Session()
         tasks = (
             session.query(Tasks)
-            .filter(Tasks.team_id == team_id, Tasks.status == "assigned")
+            .filter(Tasks.team_id == team_id, Tasks.user_id.isnot(None))
             .all()
         )
         return tasks

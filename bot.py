@@ -17,7 +17,6 @@ import consts
 import dojobot
 from db import DATABASE
 from api_service import get_intent
-from models import Users
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -273,6 +272,8 @@ def handle_text_msg(update, context):
             dojobot.update_task_intent(message)
         elif intent.intent == consts.TASK_LIST:
             dojobot.list_tasks_intent(update, message, intent)
+        elif intent.intent == consts.LIST_MINE_TASK:
+            dojobot.list_mine_tasks_intent(update, message, intent)
         elif intent.intent == consts.VOTE:
             dojobot.vote_intent(message)
         else:
