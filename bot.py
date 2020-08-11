@@ -1,7 +1,9 @@
 import argparse
 import arrow
+import ffmpeg
 import logging
 import os
+import tempfile
 
 from dotenv import load_dotenv
 from telegram import ChatAction, ParseMode, KeyboardButton, ReplyKeyboardMarkup, Chat
@@ -48,6 +50,7 @@ def main():
     dp.add_handler(CommandHandler("help", help_msg))
 
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
+    dp.add_handler(MessageHandler(Filters.voice, handle_audio))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_msg))
     dp.add_handler(MessageHandler(Filters.document, store_document))
 
@@ -168,16 +171,19 @@ def start_msg(update, context):
         from_user.id, from_user.first_name, from_user.username, message.chat.id
     )
 
-    message.reply_text(
-        f"Hi! I'm {consts.BOT_NAME}. I'm here to help you to organise your "
+    update.effective_message.reply_text(
+        f"Hi! My name is {consts.BOT_NAME}. I'm here to help you to organise your "
         "group project and providing guidance along the way.\n\n"
-        f"Type /help to see how to use {consts.BOT_NAME}."
+        f"Type /help to see what I can do."
     )
 
 
 def help_msg(update, context):
     message = update.effective_message
-    text = "Please check the reply keyboard for some of the things I can do.\n\n"
+    text = (
+        "Please check the reply keyboard for some of the things I can do. "
+        "You can either use text or voice messages to chat with me.\n\n"
+    )
 
     if message.chat.type == Chat.PRIVATE:
         text += (
@@ -200,8 +206,9 @@ def help_msg(update, context):
 
 def get_grp_help_msg(context):
     return (
-        "To talk to me in group chats, either send your message that starts with "
-        f"@{context.bot.username} or reply to a message that I sent."
+        "To talk to me in group chats, either send your text message that starts with "
+        f"@{context.bot.username}, or send your voice message that starts with "
+        f"'hey {consts.BOT_NAME}', or reply to a message that I have sent through.\n\n"
     )
 
 
@@ -220,7 +227,7 @@ def greet_group(update, context):
                 names.append(user.first_name)
 
             message.reply_text(
-                f"Hello everyone! I'm {consts.BOT_NAME} and "
+                f"Hello everyone! My name is {consts.BOT_NAME} and "
                 "I've initialised a team for this group chat. "
                 "Invite your team members into this chat and "
                 "I'll add them onto the team.\n\n"
@@ -251,38 +258,7 @@ def handle_text_msg(update, context):
     message.chat.send_action(ChatAction.TYPING)
     if not handle_task_fields(context, message):
         intent = get_intent(message.from_user.id, message.text)
-        if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
-            dojobot.schedule_meeting_intent(context, message, intent)
-        elif intent.intent == consts.MEETING_REMINDER:
-            dojobot.meeting_reminder_intent(context, message)
-        elif intent.intent == consts.MEETING_NO_REMIDNER:
-            dojobot.meeting_no_reminder_intent(context, message)
-        elif intent.intent == consts.MEETING_LIST:
-            dojobot.list_meetings_intent(message, intent)
-        elif intent.intent == consts.STORE_AGENDA:
-            dojobot.store_agenda_intent(context, message, intent)
-        elif intent.intent == consts.GET_AGENDA:
-            dojobot.get_agenda_intent(update, context, intent)
-        elif intent.intent == consts.STORE_NOTES:
-            dojobot.store_notes_intent(context, message, intent)
-        elif intent.intent == consts.GET_NOTES:
-            dojobot.get_notes_intent(update, context, intent)
-        elif intent.intent == consts.CHANGE_REMIND:
-            dojobot.change_reminder_intent(message, intent)
-        elif intent.intent == consts.CANCEL_MEETING:
-            dojobot.cancel_meeting_intent(message, intent)
-        elif intent.intent == consts.CREATE_TASK:
-            dojobot.create_task_intent(context, message, intent)
-        elif intent.intent == consts.UPDATE_TASK:
-            dojobot.update_task_intent(message)
-        elif intent.intent == consts.TASK_LIST:
-            dojobot.list_tasks_intent(update, message, intent)
-        elif intent.intent == consts.LIST_MINE_TASK:
-            dojobot.list_mine_tasks_intent(update, message, intent)
-        elif intent.intent == consts.VOTE:
-            dojobot.vote_intent(message)
-        else:
-            message.reply_text(intent.fulfill_text)
+        handle_intent(update, context, message, intent)
 
 
 def handle_task_fields(context, message):
@@ -327,6 +303,64 @@ def handle_task_fields(context, message):
                 message.reply_text("Invalid due date, please try again.")
 
     return is_success
+
+
+def handle_intent(update, context, message, intent):
+    if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
+        dojobot.schedule_meeting_intent(context, message, intent)
+    elif intent.intent == consts.MEETING_REMINDER:
+        dojobot.meeting_reminder_intent(context, message)
+    elif intent.intent == consts.MEETING_NO_REMIDNER:
+        dojobot.meeting_no_reminder_intent(context, message)
+    elif intent.intent == consts.MEETING_LIST:
+        dojobot.list_meetings_intent(message, intent)
+    elif intent.intent == consts.STORE_AGENDA:
+        dojobot.store_agenda_intent(context, message, intent)
+    elif intent.intent == consts.GET_AGENDA:
+        dojobot.get_agenda_intent(update, context, intent)
+    elif intent.intent == consts.STORE_NOTES:
+        dojobot.store_notes_intent(context, message, intent)
+    elif intent.intent == consts.GET_NOTES:
+        dojobot.get_notes_intent(update, context, intent)
+    elif intent.intent == consts.CHANGE_REMIND:
+        dojobot.change_reminder_intent(message, intent)
+    elif intent.intent == consts.CANCEL_MEETING:
+        dojobot.cancel_meeting_intent(message, intent)
+    elif intent.intent == consts.CREATE_TASK:
+        dojobot.create_task_intent(context, message, intent)
+    elif intent.intent == consts.UPDATE_TASK:
+        dojobot.update_task_intent(message)
+    elif intent.intent == consts.TASK_LIST:
+        dojobot.list_tasks_intent(update, message, intent)
+    else:
+        message.reply_text(intent.fulfill_text)
+
+
+def handle_audio(update, context):
+    message = update.effective_message
+    message.chat.send_action(ChatAction.TYPING)
+    file = message.voice.get_file()
+
+    with tempfile.NamedTemporaryFile(
+        suffix=".ogg"
+    ) as ogg_file, tempfile.NamedTemporaryFile(suffix=".wav") as wav_file:
+        file.download(custom_path=ogg_file.name)
+        ffmpeg.input(ogg_file.name).output(wav_file.name).run(
+            overwrite_output=True, quiet=True
+        )
+        intent = get_intent(message.from_user.id, input_audio=wav_file.read())
+
+    if message.chat.type == Chat.PRIVATE or (
+        message.chat.type in {Chat.GROUP, Chat.SUPERGROUP}
+        and (
+            intent.is_mentioned
+            or (
+                message.reply_to_message is not None
+                and message.reply_to_message.from_user.id == context.bot.id
+            )
+        )
+    ):
+        handle_intent(update, context, message, intent)
 
 
 def send_notis(context):

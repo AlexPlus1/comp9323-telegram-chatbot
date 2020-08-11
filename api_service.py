@@ -5,14 +5,15 @@ import consts
 
 
 class IntentResult:
-    def __init__(self, intent, params, all_params_present, fulfill_text):
+    def __init__(self, intent, params, all_params_present, fulfill_text, is_mentioned):
         self.intent = intent
         self.params = params
         self.all_params_present = all_params_present
         self.fulfill_text = fulfill_text
+        self.is_mentioned = is_mentioned
 
 
-def get_intent(session_id, text) -> IntentResult:
+def get_intent(session_id, text=None, input_audio=None) -> IntentResult:
     """Get intent from a given text
 
     Args:
@@ -28,15 +29,27 @@ def get_intent(session_id, text) -> IntentResult:
                 "fulfill_text": str
             }
     """
+    if text is None and input_audio is None:
+        raise ValueError("Either text or input_audio must be provided")
+
     project_id = "dojochatbot-gcietn"
     language_code = "en"
     session_client = dialogflow.SessionsClient.from_service_account_file("keyfile.json")
-
     session = session_client.session_path(project_id, session_id)
-    text_input = dialogflow.types.TextInput(text=text, language_code=language_code)
-    query_input = dialogflow.types.QueryInput(text=text_input)
-    response = session_client.detect_intent(session=session, query_input=query_input)
 
+    if text is not None:
+        text_input = dialogflow.types.TextInput(text=text, language_code=language_code)
+        query_input = dialogflow.types.QueryInput(text=text_input)
+    else:
+        audio_encoding = dialogflow.enums.AudioEncoding.AUDIO_ENCODING_LINEAR_16
+        audio_config = dialogflow.types.InputAudioConfig(
+            audio_encoding=audio_encoding, language_code=language_code,
+        )
+        query_input = dialogflow.types.QueryInput(audio_config=audio_config)
+
+    response = session_client.detect_intent(
+        session=session, query_input=query_input, input_audio=input_audio
+    )
     query_result = response.query_result
     intent = query_result.intent.display_name
     params = None
@@ -58,8 +71,11 @@ def get_intent(session_id, text) -> IntentResult:
     if params is not None:
         all_params_present = check_params_present(params)
 
+    is_mentioned = query_result.query_text.lower().startswith(
+        f"hey {consts.BOT_NAME.lower()}"
+    )
     result = IntentResult(
-        intent, params, all_params_present, query_result.fulfillment_text,
+        intent, params, all_params_present, query_result.fulfillment_text, is_mentioned
     )
 
     return result

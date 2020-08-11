@@ -1,4 +1,4 @@
-BOT_NAME = "Dojo Bot"
+BOT_NAME = "Dojo"
 
 # Meeting related constants
 SCHEDULE_MEETING = "meeting.schedule"
