@@ -231,8 +231,11 @@ def create_task(update, context):
             query.message.chat.id, get_task_text(task), parse_mode=ParseMode.HTML
         )
 
-    if task is not None and task.user is not None and is_task_done:
-        ask_task_feedback(context.bot, query.message.chat.id, task)
+    if task is not None and is_task_done:
+        if task.user_id is not None:
+            ask_task_feedback(context.bot, query.message.chat.id, task)
+
+        task_done_suggest(context.bot, query.message.chat.id, query.from_user.id)
 
 
 def list_tasks_intent(update, message, intent):
@@ -345,3 +348,45 @@ def task_feedback_callback(update, context):
 
         reply_markup = InlineKeyboardMarkup([keyboard])
         query.edit_message_reply_markup(reply_markup)
+
+
+def task_done_suggest(bot, chat_id, user_id):
+    reply_markup = None
+    tasks = DATABASE.get_tasks_by_user(chat_id, user_id, status=consts.TASK_TODO)
+
+    if tasks:
+        text = (
+            "Here are the To-Do tasks assigned to you, consider to "
+            "work on one of these tasks next:"
+        )
+        reply_markup = get_tasks_keyboard(tasks)
+    else:
+        tasks = DATABASE.get_tasks(chat_id, status=consts.TASK_TODO)
+        if tasks:
+            text = (
+                "Here are the To-Do tasks for the team, consider to "
+                "work on one of these tasks next:"
+            )
+            reply_markup = get_tasks_keyboard(tasks)
+        else:
+            text = (
+                "There's no more To-Do tasks for your team. "
+                "Keep working on the reaming Doing tasks or "
+                "schedule another meeting about next steps."
+            )
+
+    bot.send_message(chat_id, text, reply_markup=reply_markup)
+
+
+def get_tasks_keyboard(tasks):
+    keyboard = []
+    for task in tasks:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    task.name, callback_data=f"{consts.UPDATE_TASK},{task.task_id}",
+                )
+            ]
+        )
+
+    return InlineKeyboardMarkup(keyboard)

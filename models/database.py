@@ -330,13 +330,16 @@ class Database(object):
 
         return tasks.all()
 
-    def get_tasks_by_user(self, team_id, user_id):
+    def get_tasks_by_user(self, team_id, user_id, status=None):
         session = DB_Session()
-        return (
-            session.query(Tasks)
-            .filter(Tasks.team_id == team_id, Tasks.user_id == user_id)
-            .all()
+        tasks = session.query(Tasks).filter(
+            Tasks.team_id == team_id, Tasks.user_id == user_id
         )
+
+        if status is not None:
+            tasks = tasks.filter(Tasks.status == status)
+
+        return tasks.all()
 
     # return assigned tasks given team_id
     def get_assigned_tasks(self, team_id):
