@@ -332,6 +332,8 @@ def handle_intent(update, context, message, intent):
         dojobot.update_task_intent(message)
     elif intent.intent == consts.TASK_LIST:
         dojobot.list_tasks_intent(update, message, intent)
+    elif intent.intent == consts.VOTE:
+        dojobot.vote_intent(message)
     else:
         message.reply_text(intent.fulfill_text)
 
