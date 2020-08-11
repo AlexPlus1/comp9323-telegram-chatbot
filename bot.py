@@ -17,7 +17,7 @@ from telegram.ext import (
 
 import consts
 import dojobot
-from db import DATABASE
+from db import database
 from api_service import get_intent
 
 load_dotenv()
@@ -32,7 +32,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def init_db():
-    DATABASE.create_table()
+    database.create_table()
     print("Database has been initialised")
 
 
@@ -167,7 +167,7 @@ def main():
 def start_msg(update, context):
     message = update.effective_message
     from_user = message.from_user
-    DATABASE.add_user_team(
+    database.add_user_team(
         from_user.id, from_user.first_name, from_user.username, message.chat.id
     )
 
@@ -221,7 +221,7 @@ def greet_group(update, context):
 
             for chat_member in chat_members:
                 user = chat_member.user
-                DATABASE.add_user_team(
+                database.add_user_team(
                     user.id, user.first_name, user.username, message.chat.id
                 )
                 names.append(user.first_name)
@@ -241,7 +241,7 @@ def greet_group(update, context):
                 "Type /help if you're not sure what I can do", quote=False,
             )
         else:
-            DATABASE.add_user_team(
+            database.add_user_team(
                 user.id, user.first_name, user.username, message.chat.id
             )
             message.reply_text(
@@ -366,7 +366,7 @@ def handle_audio(update, context):
 
 
 def send_notis(context):
-    notis = DATABASE.get_passed_notis()
+    notis = database.get_passed_notis()
     for noti in notis:
         context.bot.send_message(noti.chat_id, noti.text, parse_mode=ParseMode.HTML)
         if noti.doc_id is not None:
@@ -374,7 +374,7 @@ def send_notis(context):
                 noti.chat_id, noti.doc_id, caption=noti.doc_caption
             )
 
-        DATABASE.delete(noti)
+        database.delete(noti)
 
 
 def store_document(update, context):
@@ -399,10 +399,10 @@ def store_document(update, context):
 
             # Update reminder with agenda
             if meeting.has_reminder:
-                DATABASE.cancel_remind(meeting.meeting_id, message.chat.id)
-                DATABASE.set_remind(meeting.meeting_id, message.chat.id)
+                database.cancel_remind(meeting.meeting_id, message.chat.id)
+                database.set_remind(meeting.meeting_id, message.chat.id)
 
-        DATABASE.commit()
+        database.commit()
         update.effective_message.reply_text(
             f"<b>{message.document.file_name}</b> has been stored as the {doc_type} "
             f"for the meeting on <b>{meeting.formatted_datetime()}</b>",

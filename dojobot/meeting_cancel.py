@@ -2,13 +2,13 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 import arrow
 
-from db import DATABASE
+from db import database
 
 
 def cancel_meeting_intent(message, intent):
     datetime = intent.params["datetime"]
     if datetime is not None:
-        meeting = DATABASE.get_meeting_by_time(message.chat.id, datetime)
+        meeting = database.get_meeting_by_time(message.chat.id, datetime)
         if meeting is None:
             message.reply_text(
                 "No meeting found with the given date and time. Please try again."
@@ -42,7 +42,7 @@ def cancel_meeting(update, context):
     query = update.callback_query
     meeting_id = query.data[2:]
     query.answer()
-    meeting = DATABASE.get_meeting_by_id(meeting_id)
+    meeting = database.get_meeting_by_id(meeting_id)
 
     if meeting:
         if meeting.datetime < arrow.now():
@@ -51,8 +51,8 @@ def cancel_meeting(update, context):
             temp_text = (
                 f"You've canceled the meeting on <b>{meeting.formatted_datetime()}</b>"
             )
-            DATABASE.cancel_remind(meeting_id, query.message.chat.id)
-            DATABASE.delete(meeting)
+            database.cancel_remind(meeting_id, query.message.chat.id)
+            database.delete(meeting)
     else:
         temp_text = "DATABASE ERROR! Can't delete this meeting"
 
@@ -73,7 +73,7 @@ def cancel_meeting_main_menu(update, context):
 
 
 def cancel_meeting_main_menu_keyboard(team_id):
-    meetings = DATABASE.get_meetings(team_id, after=arrow.utcnow())
+    meetings = database.get_meetings(team_id, after=arrow.utcnow())
     keyboard = []
     reply_markup = None
 
@@ -104,7 +104,7 @@ def cancel_meeting_first_menu(update, context):
     query.edit_message_text(
         text=(
             "Are you sure you want to cancel the meeting at "
-            f"<b>{DATABASE.get_meeting_by_id(temp).formatted_datetime()}</b>"
+            f"<b>{database.get_meeting_by_id(temp).formatted_datetime()}</b>"
         ),
         reply_markup=cancel_meeting_first_menu_keyboard(temp),
         parse_mode=ParseMode.HTML,

@@ -1,7 +1,7 @@
 # Feedback class
 # M to 1 to Users amnd Tasks
 
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from models.base import Base
 

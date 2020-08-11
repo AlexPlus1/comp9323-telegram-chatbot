@@ -295,16 +295,6 @@ class Database(object):
             else:
                 return lesser
 
-    def set_task(self, task_id, task):
-        session = DB_Session()
-        that_task = session.query(Tasks).filter(Tasks.task_id == task_id).first()
-        that_task.name = task.name
-        that_task.due_date = task.due_date
-        that_task.status = task.status
-        that_task.summary = task.summary
-        that_task.user_id = task.user_id
-        session.commit()
-
     def get_task(self, task_id):
         session = DB_Session()
         return session.query(Tasks).filter(Tasks.task_id == task_id).first()

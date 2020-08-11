@@ -3,7 +3,7 @@ import arrow
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 import consts
-from db import DATABASE
+from db import database
 
 
 def store_agenda_intent(context, message, intent):
@@ -15,7 +15,7 @@ def store_agenda_intent(context, message, intent):
 
 
 def store_agenda_with_datetime(context, message, datetime):
-    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
+    meeting = database.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
             "No meeting found with the given date and time. Please try again."
@@ -53,7 +53,7 @@ def store_agenda_confirm_keyboard(meeting_id):
 
 
 def store_agenda_without_datetime(message):
-    meetings = DATABASE.get_meetings(message.chat_id, after=arrow.utcnow())
+    meetings = database.get_meetings(message.chat_id, after=arrow.utcnow())
     keyboard = []
 
     for meeting in meetings:
@@ -93,7 +93,7 @@ def store_agenda_callback(update, context):
 
 
 def edit_store_agenda_msg(context, query, meeting_id):
-    meeting = DATABASE.get_meeting_by_id(meeting_id)
+    meeting = database.get_meeting_by_id(meeting_id)
     if consts.CONFIRM_STORE_AGENDA in context.user_data:
         del context.user_data[consts.CONFIRM_STORE_AGENDA]
         if meeting is None:
@@ -125,7 +125,7 @@ def get_agenda_intent(update, context, intent):
 
 
 def get_agenda_with_datetime(message, datetime):
-    meeting = DATABASE.get_meeting_by_time(message.chat_id, datetime)
+    meeting = database.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
             "No meeting found with the given date and time. Please try again."
@@ -140,7 +140,7 @@ def get_agenda_with_datetime(message, datetime):
 
 
 def get_agenda_without_datetime(message):
-    meetings = DATABASE.get_meetings(message.chat_id)
+    meetings = database.get_meetings(message.chat_id)
     keyboard = []
 
     for meeting in meetings:
@@ -165,7 +165,7 @@ def get_agenda_callback(update, context):
     query = update.callback_query
     query.answer()
     _, meeting_id = query.data.split(",")
-    meeting = DATABASE.get_meeting_by_id(meeting_id)
+    meeting = database.get_meeting_by_id(meeting_id)
 
     if meeting is None:
         query.edit_message_text("The meeting is invalid. Please try again.")

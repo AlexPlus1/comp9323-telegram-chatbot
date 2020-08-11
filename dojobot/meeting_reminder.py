@@ -5,13 +5,13 @@ from telegram.ext import ConversationHandler
 
 import consts
 
-from db import DATABASE
+from db import database
 
 
 def change_reminder_intent(message, intent):
     datetime = intent.params["datetime"]
     if datetime is not None:
-        meeting = DATABASE.get_meeting_by_time(message.chat.id, datetime)
+        meeting = database.get_meeting_by_time(message.chat.id, datetime)
         if meeting is None:
             message.reply_text(
                 "No meeting found with the given date and time. Please try again."
@@ -49,14 +49,14 @@ def change_remind(update, context):
     _, meeting_id = query.data.split(",")
     chat_id = query.message.chat.id
     query.answer()
-    check = DATABASE.reminder_state(meeting_id)
+    check = database.reminder_state(meeting_id)
 
     if check:
         temp_text = "You've turned off the reminder!"
-        DATABASE.cancel_remind(meeting_id, chat_id)
+        database.cancel_remind(meeting_id, chat_id)
     else:
         temp_text = "You've turned on the reminder!"
-        DATABASE.set_remind(meeting_id, chat_id)
+        database.set_remind(meeting_id, chat_id)
 
     query.edit_message_text(text=temp_text)
     return ConversationHandler.END
@@ -85,7 +85,7 @@ def remind_main_menu(update, context):
 
 
 def remind_main_menu_keyboard(chat_id):
-    meetings = DATABASE.get_meetings(chat_id, after=arrow.utcnow())
+    meetings = database.get_meetings(chat_id, after=arrow.utcnow())
     keyboard = []
     reply_markup = None
 
@@ -112,7 +112,7 @@ def remind_first_menu(update, context):
     query = update.callback_query
     query.answer()
     temp = query.data[2:]
-    check = DATABASE.reminder_state(temp)
+    check = database.reminder_state(temp)
 
     if check:
         status = "on"

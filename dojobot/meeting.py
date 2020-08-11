@@ -3,7 +3,7 @@ import arrow
 from telegram import KeyboardButton, ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 import consts
-from db import DATABASE
+from db import database
 from models import Meetings
 
 
@@ -12,13 +12,13 @@ def schedule_meeting_intent(context, message, intent):
         message.reply_text("Can't schedule a meeting in the past")
     else:
         if not check_meeting_conflict(message, intent):
-            DATABASE.get_team(message.chat.id)
+            database.get_team(message.chat.id)
             new_meeting = Meetings(
                 datetime=intent.params["datetime"].to("UTC"),
                 duration=int(intent.params["duration"]),
                 teams_id=message.chat.id,
             )
-            DATABASE.insert(new_meeting)
+            database.insert(new_meeting)
             context.user_data[consts.SCHEDULE_MEETING] = new_meeting
 
             reply = "Your meeting has been scheduled on <b>{}</b> for <b>{} mins</b>.".format(
@@ -39,7 +39,7 @@ def schedule_meeting_intent(context, message, intent):
 
 def check_meeting_conflict(message, intent):
     end = intent.params["datetime"].shift(minutes=int(intent.params["duration"]))
-    meetings = DATABASE.get_meetings(message.chat_id)
+    meetings = database.get_meetings(message.chat_id)
     is_conflict = False
 
     if meetings:
@@ -65,7 +65,7 @@ def check_meeting_conflict(message, intent):
 def meeting_reminder_intent(context, message):
     if consts.SCHEDULE_MEETING in context.user_data:
         meeting = context.user_data[consts.SCHEDULE_MEETING]
-        DATABASE.set_remind(meeting.meeting_id, message.chat.id)
+        database.set_remind(meeting.meeting_id, message.chat.id)
         del context.user_data[consts.SCHEDULE_MEETING]
 
         message.reply_text(
@@ -83,7 +83,7 @@ def meeting_no_reminder_intent(context, message):
 
 
 def list_meetings_intent(message, intent):
-    meetings = DATABASE.get_meetings(message.chat_id, after=arrow.utcnow())
+    meetings = database.get_meetings(message.chat_id, after=arrow.utcnow())
     reply = intent.fulfill_text + "\n"
     i = 1
 

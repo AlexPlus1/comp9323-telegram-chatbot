@@ -2,7 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Chat
 
 import consts
 
-from db import DATABASE
+from db import database
 from models import Tasks
 
 
@@ -40,7 +40,7 @@ def ask_task_details(message, task):
 def get_task_text(task):
     assignee = None
     if task.user_id is not None:
-        user = DATABASE.get_user(task.user_id)
+        user = database.get_user(task.user_id)
         assignee = user.name
 
     return (
@@ -157,7 +157,7 @@ def ask_task_user(update, context):
                 ]
             )
         else:
-            users = DATABASE.get_users(query.message.chat.id)
+            users = database.get_users(query.message.chat.id)
             for user in users:
                 keyboard.append(
                     [
@@ -213,10 +213,10 @@ def create_task(update, context):
         else:
             if task.task_id is None:
                 operation = "created"
-                DATABASE.insert(task)
+                database.insert(task)
             else:
                 operation = "updated"
-                task = DATABASE.set_task(task.task_id, task)
+                task = database.set_task(task.task_id, task)
 
             is_task_created = True
             is_task_done = task.status == consts.TASK_DONE
@@ -239,7 +239,7 @@ def create_task(update, context):
 
 
 def list_tasks_intent(update, message, intent):
-    tasks = DATABASE.get_tasks(message.chat_id)
+    tasks = database.get_tasks(message.chat_id)
     reply = intent.fulfill_text + "\n"
     i = 1
 
@@ -255,7 +255,7 @@ def list_tasks_intent(update, message, intent):
 
 
 def list_mine_tasks_intent(update, message, intent):
-    tasks = DATABASE.get_tasks_by_user(message.chat.id, message.from_user.id)
+    tasks = database.get_tasks_by_user(message.chat.id, message.from_user.id)
     reply = intent.fulfill_text + "\n"
     i = 1
 
@@ -271,7 +271,7 @@ def list_mine_tasks_intent(update, message, intent):
 
 
 def update_task_intent(message):
-    tasks = DATABASE.get_tasks(message.chat.id)
+    tasks = database.get_tasks(message.chat.id)
     keyboard = []
 
     for task in tasks:
@@ -297,7 +297,7 @@ def update_task_callback(update, context):
     query = update.callback_query
     query.answer()
     _, task_id = query.data.split(",")
-    task = DATABASE.get_task(task_id)
+    task = database.get_task(task_id)
 
     if task is not None:
         context.bot.delete_message(query.message.chat.id, query.message.message_id)
@@ -329,14 +329,14 @@ def task_feedback_callback(update, context):
     query = update.callback_query
     query.answer()
     _, task_id, user_feedback = query.data.split(",")
-    task = DATABASE.get_task(task_id)
+    task = database.get_task(task_id)
 
     if task is not None:
-        DATABASE.add_feedback(task.task_id, query.from_user.id, user_feedback)
+        database.add_feedback(task.task_id, query.from_user.id, user_feedback)
         keyboard = []
 
         for feedback_type, emoji in consts.FEEDBACK_TYPES.items():
-            count = DATABASE.get_feedback_count(task_id, feedback_type)
+            count = database.get_feedback_count(task_id, feedback_type)
             keyboard.append(
                 InlineKeyboardButton(
                     f"{emoji} {count}",
@@ -352,7 +352,7 @@ def task_feedback_callback(update, context):
 
 def task_done_suggest(bot, chat_id, user_id):
     reply_markup = None
-    tasks = DATABASE.get_tasks_by_user(chat_id, user_id, status=consts.TASK_TODO)
+    tasks = database.get_tasks_by_user(chat_id, user_id, status=consts.TASK_TODO)
 
     if tasks:
         text = (
@@ -361,7 +361,7 @@ def task_done_suggest(bot, chat_id, user_id):
         )
         reply_markup = get_tasks_keyboard(tasks)
     else:
-        tasks = DATABASE.get_tasks(chat_id, status=consts.TASK_TODO)
+        tasks = database.get_tasks(chat_id, status=consts.TASK_TODO)
         if tasks:
             text = (
                 "Here are the To-Do tasks for the team, consider to "
