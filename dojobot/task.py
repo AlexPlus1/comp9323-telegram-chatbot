@@ -21,7 +21,7 @@ def ask_task_details(message, task):
         ],
         [
             InlineKeyboardButton("Due Date", callback_data=consts.EDIT_TASK_DATE),
-            InlineKeyboardButton("Assignee", callback_data=consts.EDIT_TASK_USER),
+            InlineKeyboardButton("Assigner", callback_data=consts.EDIT_TASK_USER),
         ],
         [
             InlineKeyboardButton("Cancel", callback_data=consts.CANCEL_CREATE_TASK),
@@ -169,7 +169,7 @@ def ask_task_user(update, context):
                 )
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        text = "Please select the assignee."
+        text = "Please select the Assigner."
     else:
         text = "Invalid task, please try again."
 
@@ -252,7 +252,7 @@ def list_tasks_intent(update, message, intent):
 
 
 def list_mine_tasks_intent(update, message, intent):
-    tasks = DATABASE.get_tasks_by_user(message.chat.id, message.from_user.id)
+    tasks = DATABASE.get_tasks_by_user(message.from_user.id)
     reply = intent.fulfill_text + "\n"
     i = 1
 
@@ -345,6 +345,3 @@ def task_feedback_callback(update, context):
 
         reply_markup = InlineKeyboardMarkup([keyboard])
         query.edit_message_reply_markup(reply_markup)
-
-
-def task_done_suggest():
