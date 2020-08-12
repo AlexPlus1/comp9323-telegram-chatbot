@@ -39,7 +39,7 @@ def ask_task_details(bot, chat_id, task):
     text += "\n\nPlease select from below the task field you'll like to edit"
     reply_markup = InlineKeyboardMarkup(keyboard)
     bot.send_message(
-        chat_id, text, reply_markup=reply_markup, parse_mode=ParseMode.HTML,
+        chat_id, text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
     )
 
 
@@ -233,9 +233,15 @@ def create_task(update, context):
     if task is not None and not is_task_created:
         ask_task_details(context.bot, query.message.chat_id, task)
     elif is_task_created:
+        task_text = get_task_text(task)
         context.bot.send_message(
-            query.message.chat.id, get_task_text(task), parse_mode=ParseMode.HTML
+            query.message.chat.id, task_text, parse_mode=ParseMode.HTML
         )
+
+        if query.message.chat.type != Chat.PRIVATE and task.user_id is not None:
+            group = context.bot.get_chat(task.team_id).title
+            text = f"You've been assigned to this task in '{group}':\n\n" + task_text
+            context.bot.send_message(task.user_id, text, parse_mode=ParseMode.HTML)
 
     if task is not None and is_task_done:
         if task.user_id is not None:
@@ -273,7 +279,7 @@ def list_mine_tasks_intent(update, message):
             parse_mode=ParseMode.HTML,
         )
     else:
-        message.reply_text("There's no your task, considering create one?")
+        message.reply_text("You don't have any assigned tasks.")
 
 
 def update_task_intent(message):
@@ -365,7 +371,7 @@ def task_done_suggest(bot, chat_id, user_id):
         else:
             text = (
                 "There's no more To-Do tasks for your team. "
-                "Keep working on the reaming Doing tasks or "
+                "Keep working on the remaining Doing tasks or "
                 "schedule another meeting about next steps."
             )
 
