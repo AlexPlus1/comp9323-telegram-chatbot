@@ -1,9 +1,11 @@
 import arrow
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ForceReply, Chat
 
 import consts
+
 from db import database
+from dojobot import utils
 
 
 def store_agenda_intent(context, message, intent):
@@ -36,7 +38,14 @@ def store_agenda_with_datetime(context, message, datetime):
                 )
             else:
                 context.user_data[consts.STORE_AGENDA] = meeting
-                message.reply_text("Please send me the meeting agenda file.")
+                reply_markup = None
+
+                if message.chat.type != Chat.PRIVATE:
+                    reply_markup = ForceReply()
+
+                message.reply_text(
+                    "Please send me the meeting agenda file.", reply_markup=reply_markup
+                )
 
 
 def store_agenda_confirm_keyboard(meeting_id):
@@ -100,7 +109,8 @@ def edit_store_agenda_msg(context, query, meeting_id):
             query.edit_message_text("The meeting is invalid. Please try again.")
         else:
             context.user_data[consts.STORE_AGENDA] = meeting
-            query.edit_message_text("Please send me the meeting agenda file.")
+            text = "Please send me the meeting agenda file."
+            utils.edit_query_message(context, query, text)
     else:
         if meeting.agenda:
             context.user_data[consts.CONFIRM_STORE_AGENDA] = True
@@ -111,7 +121,8 @@ def edit_store_agenda_msg(context, query, meeting_id):
             )
         else:
             context.user_data[consts.STORE_AGENDA] = meeting
-            query.edit_message_text("Please send me the meeting agenda file.")
+            text = "Please send me the meeting agenda file."
+            utils.edit_query_message(context, query, text)
 
 
 def get_agenda_intent(update, context, intent):

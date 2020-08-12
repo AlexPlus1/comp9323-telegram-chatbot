@@ -1,9 +1,11 @@
 import arrow
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Chat, ForceReply
 
 import consts
+
 from db import database
+from dojobot import utils
 
 
 def store_notes_intent(context, message, intent):
@@ -36,7 +38,14 @@ def store_notes_with_datetime(context, message, datetime):
                 )
             else:
                 context.user_data[consts.STORE_NOTES] = meeting
-                message.reply_text("Please send me the meeting notes file.")
+                reply_markup = None
+
+                if message.chat.type != Chat.PRIVATE:
+                    reply_markup = ForceReply()
+
+                message.reply_text(
+                    "Please send me the meeting notes file.", reply_markup=reply_markup
+                )
 
 
 def store_notes_confirm_keyboard(meeting_id):
@@ -100,7 +109,8 @@ def edit_store_notes_msg(context, query, meeting_id):
             query.edit_message_text("The meeting is invalid. Please try again.")
         else:
             context.user_data[consts.STORE_NOTES] = meeting
-            query.edit_message_text("Please send me the meeting notes file.")
+            text = "Please send me the meeting notes file."
+            utils.edit_query_message(context, query, text)
     else:
         if meeting.notes:
             context.user_data[consts.CONFIRM_STORE_NOTES] = True
@@ -111,7 +121,8 @@ def edit_store_notes_msg(context, query, meeting_id):
             )
         else:
             context.user_data[consts.STORE_NOTES] = meeting
-            query.edit_message_text("Please send me the meeting notes file.")
+            text = "Please send me the meeting notes file."
+            utils.edit_query_message(context, query, text)
 
 
 def get_notes_intent(update, context, intent):

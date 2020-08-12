@@ -7,7 +7,14 @@ import re
 import tempfile
 
 from dotenv import load_dotenv
-from telegram import ChatAction, ParseMode, KeyboardButton, ReplyKeyboardMarkup, Chat
+from telegram import (
+    ChatAction,
+    ParseMode,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    Chat,
+    ForceReply,
+)
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -293,6 +300,10 @@ def handle_task_fields(context, message):
         elif user_data.get(consts.EDIT_TASK_DATE):
             is_success = True
             intent = get_intent(message.chat.id, text)
+            reply_markup = None
+
+            if message.chat.type != Chat.PRIVATE:
+                reply_markup = ForceReply()
 
             if (
                 intent.intent == consts.DATE_INTENT
@@ -305,10 +316,13 @@ def handle_task_fields(context, message):
                     dojobot.ask_task_details(context.bot, chat_id, task)
                 else:
                     message.reply_text(
-                        "Due date must be tomorrow or later, please try again."
+                        "Due date must be tomorrow or later, please try again.",
+                        reply_markup=reply_markup,
                     )
             else:
-                message.reply_text("Invalid due date, please try again.")
+                message.reply_text(
+                    "Invalid due date, please try again.", reply_markup=reply_markup
+                )
 
     return is_success
 
@@ -345,7 +359,11 @@ def handle_intent(update, context, message, intent):
     elif intent.intent == consts.VOTE:
         dojobot.vote_intent(context, message)
     else:
-        message.reply_text(intent.fulfill_text)
+        reply_markup = None
+        if message.chat.type != Chat.PRIVATE:
+            reply_markup = ForceReply()
+
+        message.reply_text(intent.fulfill_text, reply_markup=reply_markup)
 
 
 def handle_audio(update, context):

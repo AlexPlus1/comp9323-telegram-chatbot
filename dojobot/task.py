@@ -1,9 +1,15 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Chat
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ParseMode,
+    Chat,
+)
 
 import consts
 
 from db import database
 from models import Tasks
+from dojobot import utils
 
 
 def create_task_intent(context, message, intent):
@@ -60,7 +66,7 @@ def ask_task_name(update, context):
     else:
         text = "Invalid task, please try again."
 
-    query.edit_message_text(text,)
+    utils.edit_query_message(context, query, text)
 
 
 def ask_task_summary(update, context):
@@ -73,7 +79,7 @@ def ask_task_summary(update, context):
     else:
         text = "Invalid task, please try again."
 
-    query.edit_message_text(text)
+    utils.edit_query_message(context, query, text)
 
 
 def ask_task_status(update, context):
@@ -130,7 +136,7 @@ def ask_task_date(update, context):
     else:
         text = "Invalid task, please try again."
 
-    query.edit_message_text(text)
+    utils.edit_query_message(context, query, text)
 
 
 def ask_task_user(update, context):
