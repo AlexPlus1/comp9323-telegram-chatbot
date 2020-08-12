@@ -13,6 +13,8 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     CallbackQueryHandler,
+    PollAnswerHandler,
+    PollHandler,
 )
 
 import consts
@@ -48,6 +50,11 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start_msg))
     dp.add_handler(CommandHandler("help", help_msg))
+
+    # Handlers for polls
+    dp.add_handler(MessageHandler(Filters.poll, dojobot.handle_received_poll))
+    dp.add_handler(PollAnswerHandler(dojobot.receive_poll_answer))
+    dp.add_handler(PollHandler(dojobot.receive_poll_answer))
 
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
     dp.add_handler(MessageHandler(Filters.voice, handle_audio))
@@ -150,9 +157,6 @@ def main():
             dojobot.task_feedback_callback, pattern=rf"{consts.TASK_FEEDBACK}.*"
         )
     )
-
-    # Close keyboard when poll created
-    dp.add_handler(MessageHandler(Filters.poll, dojobot.handle_received_poll))
 
     # Start the Bot
     updater.start_polling()

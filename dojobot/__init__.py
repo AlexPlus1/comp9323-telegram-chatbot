@@ -47,7 +47,4 @@ from .task import (  # noqa
     update_task_callback,
     task_feedback_callback,
 )
-from .vote import (  # noqa
-    vote_intent,
-    handle_received_poll,
-)
+from .vote import vote_intent, handle_received_poll, receive_poll_answer  # noqa
