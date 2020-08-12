@@ -152,11 +152,14 @@ def get_notes_without_datetime(message):
                 ]
             )
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    message.reply_text(
-        "Please select the meeting that you'll like to retrieve the notes.",
-        reply_markup=reply_markup,
-    )
+    if keyboard:
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message.reply_text(
+            "Please select the meeting that you'll like to retrieve the notes.",
+            reply_markup=reply_markup,
+        )
+    else:
+        message.reply_text("No meeting notes found.")
 
 
 def get_notes_callback(update, context):

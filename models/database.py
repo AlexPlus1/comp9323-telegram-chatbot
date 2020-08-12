@@ -35,9 +35,14 @@ class Database(object):
         session.add(obj)
         session.commit()
 
-    def delete(self, obj):
+    def delete_meeting(self, meeting_id):
         session = DB_Session()
-        session.delete(obj)
+        session.query(Meetings).filter(Meetings.meeting_id == meeting_id).delete()
+        session.commit()
+
+    def delete_noti(self, noti_id):
+        session = DB_Session()
+        session.query(Notifications).filter(Notifications.noti_id == noti_id).delete()
         session.commit()
 
     def set_remind(self, meeting_id, chat_id):
@@ -119,7 +124,7 @@ class Database(object):
             )
             caption = None
             if meeting.agenda is not None:
-                caption = "And here's the meeting agenda that you uploaded earlier:"
+                caption = "And here's the meeting agenda that you uploaded earlier"
 
             noti = Notifications(
                 noti_type=consts.NOTI_MEETING,
@@ -181,6 +186,26 @@ class Database(object):
             Notifications.chat_id == chat_id,
         ).delete()
         session.commit()
+
+    def store_meeting_agenda(self, meeting_id, file_id):
+        session = DB_Session()
+        meeting = (
+            session.query(Meetings).filter(Meetings.meeting_id == meeting_id).first()
+        )
+
+        if meeting is not None:
+            meeting.agenda = file_id
+            session.commit()
+
+    def store_meeting_notes(self, meeting_id, file_id):
+        session = DB_Session()
+        meeting = (
+            session.query(Meetings).filter(Meetings.meeting_id == meeting_id).first()
+        )
+
+        if meeting is not None:
+            meeting.notes = file_id
+            session.commit()
 
     def reminder_state(self, meating_id):
         session = DB_Session()

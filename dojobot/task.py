@@ -9,10 +9,10 @@ from models import Tasks
 def create_task_intent(context, message, intent):
     task = Tasks(team_id=message.chat_id, status=consts.TASK_TODO)
     context.user_data[consts.CURR_TASK] = task
-    ask_task_details(message, task)
+    ask_task_details(context.bot, message.chat_id, task)
 
 
-def ask_task_details(message, task):
+def ask_task_details(bot, chat_id, task):
     keyboard = [
         [
             InlineKeyboardButton("Name", callback_data=consts.EDIT_TASK_NAME),
@@ -32,8 +32,8 @@ def ask_task_details(message, task):
     text = get_task_text(task)
     text += "\n\nPlease select from below the task field you'll like to edit"
     reply_markup = InlineKeyboardMarkup(keyboard)
-    message.reply_text(
-        text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML,
+    bot.send_message(
+        chat_id, text, reply_markup=reply_markup, parse_mode=ParseMode.HTML,
     )
 
 
@@ -115,7 +115,7 @@ def task_status_callback(update, context):
     if task is not None:
         task.status = status
         context.bot.delete_message(query.message.chat.id, query.message.message_id)
-        ask_task_details(query.message, task)
+        ask_task_details(context.bot, query.message.chat_id, task)
     else:
         query.edit_message_text("Invalid task, please try again.")
 
@@ -185,7 +185,7 @@ def task_user_callback(update, context):
     if task is not None:
         task.user_id = user_id
         context.bot.delete_message(query.message.chat.id, query.message.message_id)
-        ask_task_details(query.message, task)
+        ask_task_details(context.bot, query.message.chat_id, task)
     else:
         query.edit_message_text("Invalid task, please try again.")
 
@@ -225,7 +225,7 @@ def create_task(update, context):
 
     query.edit_message_text(text)
     if task is not None and not is_task_created:
-        ask_task_details(query.message, task)
+        ask_task_details(context.bot, query.message.chat_id, task)
     elif is_task_created:
         context.bot.send_message(
             query.message.chat.id, get_task_text(task), parse_mode=ParseMode.HTML
@@ -238,54 +238,42 @@ def create_task(update, context):
         task_done_suggest(context.bot, query.message.chat.id, query.from_user.id)
 
 
-def list_tasks_intent(update, message, intent):
+def list_tasks_intent(update, message):
     tasks = database.get_tasks(message.chat_id)
-    reply = intent.fulfill_text + "\n"
-    i = 1
-
-    for task in tasks:
-        tmp = "\n{}: {} ".format(i, get_task_text(task))
-        reply += tmp
-        i += 1
-
     if tasks:
-        message.reply_text(reply, parse_mode=ParseMode.HTML)
+        reply_markup = get_tasks_keyboard(tasks)
+        message.reply_text(
+            text=(
+                "Please see below for all your tasks and "
+                "click onto them to view their details/update them."
+            ),
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
     else:
-        message.reply_text("There's no task, considering create one?")
+        message.reply_text("You haven't created any tasks.")
 
 
-def list_mine_tasks_intent(update, message, intent):
+def list_mine_tasks_intent(update, message):
     tasks = database.get_tasks_by_user(message.chat.id, message.from_user.id)
-    reply = intent.fulfill_text + "\n"
-    i = 1
-
-    for task in tasks:
-        tmp = "\n{}: {} ".format(i, get_task_text(task))
-        reply += tmp
-        i += 1
-
     if tasks:
-        message.reply_text(reply, parse_mode=ParseMode.HTML)
+        reply_markup = get_tasks_keyboard(tasks)
+        message.reply_text(
+            text=(
+                "Please see below for all the tasks assigned to you and "
+                "click on them to view their details/update them."
+            ),
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
     else:
         message.reply_text("There's no your task, considering create one?")
 
 
 def update_task_intent(message):
     tasks = database.get_tasks(message.chat.id)
-    keyboard = []
-
-    for task in tasks:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    f"{task.name} ({task.status})",
-                    callback_data=f"{consts.UPDATE_TASK},{task.task_id}",
-                )
-            ]
-        )
-
-    if keyboard:
-        reply_markup = InlineKeyboardMarkup(keyboard)
+    if tasks:
+        reply_markup = get_tasks_keyboard(tasks)
         message.reply_text(
             "Please select the task to update:", reply_markup=reply_markup
         )
@@ -302,7 +290,7 @@ def update_task_callback(update, context):
     if task is not None:
         context.bot.delete_message(query.message.chat.id, query.message.message_id)
         context.user_data[consts.CURR_TASK] = task
-        ask_task_details(query.message, task)
+        ask_task_details(context.bot, query.message.chat_id, task)
     else:
         query.edit_message_text("Invalid task, please try again.")
 
@@ -384,7 +372,8 @@ def get_tasks_keyboard(tasks):
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    task.name, callback_data=f"{consts.UPDATE_TASK},{task.task_id}",
+                    f"{task.name} ({task.status})",
+                    callback_data=f"{consts.UPDATE_TASK},{task.task_id}",
                 )
             ]
         )

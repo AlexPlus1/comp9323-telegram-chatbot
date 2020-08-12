@@ -3,6 +3,7 @@ import arrow
 import ffmpeg
 import logging
 import os
+import re
 import tempfile
 
 from dotenv import load_dotenv
@@ -212,7 +213,7 @@ def get_grp_help_msg(context):
     return (
         "To talk to me in group chats, either send your text message that starts with "
         f"@{context.bot.username}, or send your voice message that starts with "
-        f"'hey {consts.BOT_NAME}', or reply to a message that I have sent through.\n\n"
+        f"'Hey {consts.BOT_NAME}', or reply to a message that I have sent through.\n\n"
     )
 
 
@@ -261,34 +262,37 @@ def handle_text_msg(update, context):
 
     message.chat.send_action(ChatAction.TYPING)
     if not handle_task_fields(context, message):
-        intent = get_intent(message.from_user.id, message.text)
+        text = re.sub(rf"@{context.bot.username}\s*", "", message.text)
+        intent = get_intent(message.from_user.id, text)
         handle_intent(update, context, message, intent)
 
 
 def handle_task_fields(context, message):
     is_success = False
     user_data = context.user_data
+    chat_id = message.chat.id
     task = user_data.get(consts.CURR_TASK)
+    text = re.sub(rf"@{context.bot.username}\s*", "", message.text)
 
     if task is not None:
         # Set task name
         if user_data.get(consts.EDIT_TASK_NAME):
             is_success = True
             del user_data[consts.EDIT_TASK_NAME]
-            task.name = message.text
-            dojobot.ask_task_details(message, task)
+            task.name = text
+            dojobot.ask_task_details(context.bot, chat_id, task)
 
         # Set task summary
         elif user_data.get(consts.EDIT_TASK_SUMMARY):
             is_success = True
             del user_data[consts.EDIT_TASK_SUMMARY]
-            task.summary = message.text
-            dojobot.ask_task_details(message, task)
+            task.summary = text
+            dojobot.ask_task_details(context.bot, chat_id, task)
 
         # Set task due date
         elif user_data.get(consts.EDIT_TASK_DATE):
             is_success = True
-            intent = get_intent(message.chat.id, message.text)
+            intent = get_intent(message.chat.id, text)
 
             if (
                 intent.intent == consts.DATE_INTENT
@@ -298,7 +302,7 @@ def handle_task_fields(context, message):
                 if due_date >= arrow.utcnow().floor("day").shift(days=1):
                     task.due_date = due_date
                     del user_data[consts.EDIT_TASK_DATE]
-                    dojobot.ask_task_details(message, task)
+                    dojobot.ask_task_details(context.bot, chat_id, task)
                 else:
                     message.reply_text(
                         "Due date must be tomorrow or later, please try again."
@@ -335,7 +339,9 @@ def handle_intent(update, context, message, intent):
     elif intent.intent == consts.UPDATE_TASK:
         dojobot.update_task_intent(message)
     elif intent.intent == consts.TASK_LIST:
-        dojobot.list_tasks_intent(update, message, intent)
+        dojobot.list_tasks_intent(update, message)
+    elif intent.intent == consts.LIST_MINE_TASK:
+        dojobot.list_mine_tasks_intent(update, message)
     elif intent.intent == consts.VOTE:
         dojobot.vote_intent(context, message)
     else:
@@ -378,7 +384,7 @@ def send_notis(context):
                 noti.chat_id, noti.doc_id, caption=noti.doc_caption
             )
 
-        database.delete(noti)
+        database.delete_noti(noti.noti_id)
 
 
 def store_document(update, context):
@@ -397,9 +403,9 @@ def store_document(update, context):
     if key is not None:
         meeting = context.user_data[key]
         if doc_type == "notes":
-            meeting.notes = message.document.file_id
+            database.store_meeting_notes(meeting.meeting_id, message.document.file_id)
         else:
-            meeting.agenda = message.document.file_id
+            database.store_meeting_agenda(meeting.meeting_id, message.document.file_id)
 
             # Update reminder with agenda
             if meeting.has_reminder:

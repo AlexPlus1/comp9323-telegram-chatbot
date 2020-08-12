@@ -52,7 +52,7 @@ def cancel_meeting(update, context):
                 f"You've canceled the meeting on <b>{meeting.formatted_datetime()}</b>"
             )
             database.cancel_remind(meeting_id, query.message.chat.id)
-            database.delete(meeting)
+            database.delete_meeting(meeting_id)
     else:
         temp_text = "DATABASE ERROR! Can't delete this meeting"
 

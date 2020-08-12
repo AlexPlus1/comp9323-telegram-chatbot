@@ -154,11 +154,14 @@ def get_agenda_without_datetime(message):
                 ]
             )
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    message.reply_text(
-        "Please select the meeting that you'll like to retrieve the agenda.",
-        reply_markup=reply_markup,
-    )
+    if keyboard:
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message.reply_text(
+            "Please select the meeting that you'll like to retrieve the agenda.",
+            reply_markup=reply_markup,
+        )
+    else:
+        message.reply_text("No meeting agenda found.")
 
 
 def get_agenda_callback(update, context):
