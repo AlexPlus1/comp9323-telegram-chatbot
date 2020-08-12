@@ -71,12 +71,9 @@ def handle_received_poll(update, context):
 
 
 def receive_poll_answer(update, context):
-    if update.poll_answer is not None:
-        poll_id = update.poll_answer.poll_id
-    else:
-        poll_id = update.poll.id
-
+    poll_id = update.poll.id
     poll_dict = context.bot_data.get(poll_id)
+
     if poll_dict is not None:
         chat_id = context.bot_data[poll_id]["chat_id"]
         message_id = context.bot_data[poll_id]["message_id"]

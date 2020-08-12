@@ -21,7 +21,6 @@ from telegram.ext import (
     MessageHandler,
     Filters,
     CallbackQueryHandler,
-    PollAnswerHandler,
     PollHandler,
 )
 
@@ -61,7 +60,6 @@ def main():
 
     # Handlers for polls
     dp.add_handler(MessageHandler(Filters.poll, dojobot.handle_received_poll))
-    dp.add_handler(PollAnswerHandler(dojobot.receive_poll_answer))
     dp.add_handler(PollHandler(dojobot.receive_poll_answer))
 
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, greet_group))
