@@ -1,15 +1,20 @@
 import arrow
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
-from telegram.ext import ConversationHandler
 
 import consts
-
 from db import database
 
 
 def change_reminder_intent(message, intent):
+    """Handle change meeting reminder intent
+
+    Args:
+        message (Message): the Telegram message object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     datetime = intent.params["datetime"]
+
+    # Change meeting reminder with a given datetime
     if datetime is not None:
         meeting = database.get_meeting_by_time(message.chat.id, datetime)
         if meeting is None:
@@ -41,6 +46,8 @@ def change_reminder_intent(message, intent):
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML,
             )
+
+    # Provide user with a list of meetings to choose from
     else:
         reply_markup = remind_main_menu_keyboard(message.chat.id)
         if reply_markup is None:
@@ -53,6 +60,12 @@ def change_reminder_intent(message, intent):
 
 
 def change_remind(update, context):
+    """Change meeting reminder callback query handler
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     _, meeting_id = query.data.split(",")
     chat_id = query.message.chat.id
@@ -78,14 +91,25 @@ def change_remind(update, context):
 
 
 def cancel_del(update, context):
+    """Cancel change meeting reminder callback query handler
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     query.edit_message_text(text="What else can I do for you?")
-    return ConversationHandler.END
 
 
 # ---------------------------------------- MENU ----------------------------------------
 def remind_main_menu(update, context):
+    """Send the list of meetings for user to choose to change the reminder setting
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     reply_markup = remind_main_menu_keyboard(query.message.chat.id)
@@ -100,6 +124,14 @@ def remind_main_menu(update, context):
 
 
 def remind_main_menu_keyboard(chat_id):
+    """Get the meetings keyboard for user to choose to change the reminder
+
+    Args:
+        chat_id (int): the chat ID
+
+    Returns:
+        InlineKeyboardMarkup: the meetings keyboard
+    """
     meetings = database.get_meetings(chat_id, after=arrow.utcnow())
     keyboard = []
     reply_markup = None
@@ -124,6 +156,12 @@ def remind_main_menu_keyboard(chat_id):
 
 
 def remind_first_menu(update, context):
+    """Show the current status of the meeting reminder, and allow user to change it
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     meeting_id = query.data[2:]
@@ -148,6 +186,15 @@ def remind_first_menu(update, context):
 
 
 def remind_first_menu_keyboard(meeting_id, check):
+    """Get the keyboard for changing meeting reminder
+
+    Args:
+        meeting_id (int): the meeting ID
+        check (bool): whether the meeting reminder is on or off
+
+    Returns:
+        InlineKeyboardMarkup: the keyboard to toggle meeting reminder
+    """
     keyboard = [InlineKeyboardButton("Go back", callback_data="remind_main")]
     callback_data = f"{consts.CHANGE_REMIND},{meeting_id}"
 

@@ -9,6 +9,13 @@ from dojobot import utils
 
 
 def store_agenda_intent(context, message, intent):
+    """Handle store agenda intent
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     datetime = intent.params["datetime"]
     if datetime is not None:
         store_agenda_with_datetime(context, message, datetime)
@@ -17,6 +24,13 @@ def store_agenda_intent(context, message, intent):
 
 
 def store_agenda_with_datetime(context, message, datetime):
+    """Store agenda with a given meeting datetime
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+        datetime (Arrow): the arrow datetime
+    """
     meeting = database.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
@@ -29,6 +43,7 @@ def store_agenda_with_datetime(context, message, datetime):
                 "for meetings that haven't started."
             )
         else:
+            # Check if agenda file exists, if so, ask if user wants to replace it
             if meeting.agenda:
                 context.user_data[consts.CONFIRM_STORE_AGENDA] = True
                 message.reply_text(
@@ -49,6 +64,14 @@ def store_agenda_with_datetime(context, message, datetime):
 
 
 def store_agenda_confirm_keyboard(meeting_id):
+    """Get the confirm replace agenda keyboard
+
+    Args:
+        meeting_id (int): the meeting ID
+
+    Returns:
+        InlineKeyboardMarkup: the inline keyboard markup
+    """
     keyboard = [
         [
             InlineKeyboardButton(
@@ -62,6 +85,12 @@ def store_agenda_confirm_keyboard(meeting_id):
 
 
 def store_agenda_without_datetime(message):
+    """Store agenda without a given datetime, provide users with
+        a list of meetings to choose from
+
+    Args:
+        message (Message): the Telegram message object
+    """
     meetings = database.get_meetings(message.chat_id, after=arrow.utcnow())
     keyboard = []
 
@@ -89,6 +118,12 @@ def store_agenda_without_datetime(message):
 
 
 def store_agenda_callback(update, context):
+    """Store agenda callback query handler
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     _, meeting_id = query.data.split(",")
@@ -102,7 +137,16 @@ def store_agenda_callback(update, context):
 
 
 def edit_store_agenda_msg(context, query, meeting_id):
+    """Edit the store agenda message
+
+    Args:
+        context (Context): the Telegram context object
+        query (CallbackQuery): the Telegram callback query object
+        meeting_id (int): the meeting ID
+    """
     meeting = database.get_meeting_by_id(meeting_id)
+
+    # Check if user has confirmed to replace existing agenda file
     if consts.CONFIRM_STORE_AGENDA in context.user_data:
         del context.user_data[consts.CONFIRM_STORE_AGENDA]
         if meeting is None:
@@ -111,6 +155,9 @@ def edit_store_agenda_msg(context, query, meeting_id):
             context.user_data[consts.STORE_AGENDA] = meeting
             text = "Please send me the meeting agenda file."
             utils.edit_query_message(context, query, text)
+
+    # This callback query is to select a meeting, follow it up with either
+    # replace existing agenda file or ask user to send through the file
     else:
         if meeting.agenda:
             context.user_data[consts.CONFIRM_STORE_AGENDA] = True
@@ -126,6 +173,13 @@ def edit_store_agenda_msg(context, query, meeting_id):
 
 
 def get_agenda_intent(update, context, intent):
+    """Handle the get agenda intent
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     message = update.effective_message
     datetime = intent.params["datetime"]
 
@@ -136,6 +190,12 @@ def get_agenda_intent(update, context, intent):
 
 
 def get_agenda_with_datetime(message, datetime):
+    """Get agenda with a given meeting datetime
+
+    Args:
+        message (Message): the Telegram message object
+        datetime (Arrow): the arrow datetime
+    """
     meeting = database.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
@@ -151,6 +211,12 @@ def get_agenda_with_datetime(message, datetime):
 
 
 def get_agenda_without_datetime(message):
+    """Get agenda without a given datetime, provide user
+        with a list of meetings to choose from
+
+    Args:
+        message (Message): the Telegram message object
+    """
     meetings = database.get_meetings(message.chat_id)
     keyboard = []
 
@@ -176,6 +242,12 @@ def get_agenda_without_datetime(message):
 
 
 def get_agenda_callback(update, context):
+    """Send through the meeting agenda if available
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     _, meeting_id = query.data.split(",")

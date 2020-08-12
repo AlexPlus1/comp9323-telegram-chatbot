@@ -175,6 +175,12 @@ def main():
 
 
 def start_msg(update, context):
+    """Send bot start message
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     message = update.effective_message
     from_user = message.from_user
     database.add_user_team(
@@ -189,6 +195,12 @@ def start_msg(update, context):
 
 
 def help_msg(update, context):
+    """Send bot help message
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     message = update.effective_message
     text = (
         "Please check the reply keyboard for some of the things I can do. "
@@ -215,6 +227,14 @@ def help_msg(update, context):
 
 
 def get_grp_help_msg(context):
+    """Get help message for groups
+
+    Args:
+        context (Context): the Telegram context object
+
+    Returns:
+        str: the group help message
+    """
     return (
         "To talk to me in group chats, either send your text message that starts with "
         f"@{context.bot.username}, or send your voice message that starts with "
@@ -223,8 +243,15 @@ def get_grp_help_msg(context):
 
 
 def greet_group(update, context):
+    """Greet new members after added into a group
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     message = update.effective_message
     for user in message.new_chat_members:
+        # Bot has been added to the group, initialise team and add admins to the team
         if user.id == context.bot.id:
             chat_members = message.chat.get_administrators()
             names = []
@@ -250,6 +277,8 @@ def greet_group(update, context):
             message.reply_text(
                 "Type /help if you're not sure what I can do", quote=False,
             )
+
+        # A new user has been added to the group, add them to the created team
         else:
             database.add_user_team(
                 user.id, user.first_name, user.username, message.chat.id
@@ -261,6 +290,12 @@ def greet_group(update, context):
 
 
 def handle_text_msg(update, context):
+    """Handle text messages received by the bot
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     message = update.effective_message
     if not should_respond_message(context, message):
         return
@@ -273,6 +308,15 @@ def handle_text_msg(update, context):
 
 
 def handle_task_fields(context, message):
+    """Handle user providing task details
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+
+    Returns:
+        bool: whether it was successful on processing the task details
+    """
     is_success = False
     user_data = context.user_data
     chat_id = message.chat.id
@@ -326,6 +370,14 @@ def handle_task_fields(context, message):
 
 
 def handle_intent(update, context, message, intent):
+    """Handle intent retrieved from Dialogflow
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     if intent.all_params_present & (intent.intent == consts.SCHEDULE_MEETING):
         dojobot.schedule_meeting_intent(context, message, intent)
     elif intent.intent == consts.MEETING_REMINDER:
@@ -365,6 +417,12 @@ def handle_intent(update, context, message, intent):
 
 
 def handle_audio(update, context):
+    """Handle voice messages
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     message = update.effective_message
     message.chat.send_action(ChatAction.TYPING)
     file = message.voice.get_file()
@@ -372,12 +430,14 @@ def handle_audio(update, context):
     with tempfile.NamedTemporaryFile(
         suffix=".ogg"
     ) as ogg_file, tempfile.NamedTemporaryFile(suffix=".wav") as wav_file:
+        # Download and convert the voice message into wav format
         file.download(custom_path=ogg_file.name)
         ffmpeg.input(ogg_file.name).output(wav_file.name).run(
             overwrite_output=True, quiet=True
         )
         intent = get_intent(message.from_user.id, input_audio=wav_file.read())
 
+    # Check if the bot should respond to the voice message
     if message.chat.type == Chat.PRIVATE or (
         message.chat.type in {Chat.GROUP, Chat.SUPERGROUP}
         and (
@@ -392,6 +452,11 @@ def handle_audio(update, context):
 
 
 def send_notis(context):
+    """Send notifications of meeting reminders
+
+    Args:
+        context (Context): the Telegram context object
+    """
     notis = database.get_passed_notis()
     for noti in notis:
         context.bot.send_message(noti.chat_id, noti.text, parse_mode=ParseMode.HTML)
@@ -404,6 +469,12 @@ def send_notis(context):
 
 
 def store_document(update, context):
+    """Handle received documents
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     message = update.effective_message
     if not should_respond_message(context, message):
         return

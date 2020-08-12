@@ -12,6 +12,12 @@ import consts
 
 
 def vote_intent(context, message):
+    """Handle the intent to create a poll
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+    """
     if message.chat.type != Chat.PRIVATE:
         chat_id = message.from_user.id
         context.user_data[consts.VOTE] = message.chat.id
@@ -44,6 +50,12 @@ def vote_intent(context, message):
 
 
 def handle_received_poll(update, context):
+    """Forward the poll back to the group chat
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     poll = update.effective_message.poll
     chat_id = context.user_data.get(consts.VOTE)
 
@@ -71,6 +83,12 @@ def handle_received_poll(update, context):
 
 
 def receive_poll_answer(update, context):
+    """Handle when a user votes on a poll and decide if it should close the poll
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     poll_id = update.poll.id
     poll_dict = context.bot_data.get(poll_id)
 
@@ -80,6 +98,7 @@ def receive_poll_answer(update, context):
         context.bot_data[poll_id]["answers"] += 1
         num_members = context.bot.get_chat_members_count(chat_id) - 1
 
+        # Close the poll when everyone in the group has voted
         if num_members == context.bot_data[poll_id]["answers"]:
             context.bot.stop_poll(chat_id, message_id)
             context.bot.send_message(

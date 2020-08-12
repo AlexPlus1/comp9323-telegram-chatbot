@@ -9,6 +9,13 @@ from dojobot import utils
 
 
 def store_notes_intent(context, message, intent):
+    """Handle store notes intent
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     datetime = intent.params["datetime"]
     if datetime is not None:
         store_notes_with_datetime(context, message, datetime)
@@ -17,6 +24,13 @@ def store_notes_intent(context, message, intent):
 
 
 def store_notes_with_datetime(context, message, datetime):
+    """Store notes with a given meeting datetime
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+        datetime (Arrow): the arrow datetime
+    """
     meeting = database.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
@@ -29,6 +43,7 @@ def store_notes_with_datetime(context, message, datetime):
                 "after you've finished your meeting."
             )
         else:
+            # Check if meeting notes file exists, if so, ask if user wants to replace it
             if meeting.notes:
                 context.user_data[consts.CONFIRM_STORE_NOTES] = True
                 message.reply_text(
@@ -49,6 +64,14 @@ def store_notes_with_datetime(context, message, datetime):
 
 
 def store_notes_confirm_keyboard(meeting_id):
+    """Get the keyboard to confirm to replace meeting notes file
+
+    Args:
+        meeting_id (int): the meeting ID
+
+    Returns:
+        InlineKeyboardMarkup: the confirm keyboard
+    """
     keyboard = [
         [
             InlineKeyboardButton(
@@ -62,6 +85,12 @@ def store_notes_confirm_keyboard(meeting_id):
 
 
 def store_notes_without_datetime(message):
+    """Store notes without a given datetime, provide user
+        with a list of meetings to choose from
+
+    Args:
+        message (Message): the Telegram message object
+    """
     meetings = database.get_meetings(message.chat_id, before=arrow.utcnow())
     keyboard = []
 
@@ -89,6 +118,12 @@ def store_notes_without_datetime(message):
 
 
 def store_notes_callback(update, context):
+    """Store meeting notes callback query handler
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     _, meeting_id = query.data.split(",")
@@ -102,7 +137,16 @@ def store_notes_callback(update, context):
 
 
 def edit_store_notes_msg(context, query, meeting_id):
+    """Edit store notes query message
+
+    Args:
+        context (Context): the Telegram context object
+        query (CallbackQuery): the Telegram callback query object
+        meeting_id (int): the meeting ID
+    """
     meeting = database.get_meeting_by_id(meeting_id)
+
+    # Check if user has confirmed to replace existing meeting notes file
     if consts.CONFIRM_STORE_NOTES in context.user_data:
         del context.user_data[consts.CONFIRM_STORE_NOTES]
         if meeting is None:
@@ -112,6 +156,9 @@ def edit_store_notes_msg(context, query, meeting_id):
             text = "Please send me the meeting notes file."
             utils.edit_query_message(context, query, text)
     else:
+
+        # User has picked a meeting and notes file exists,
+        # ask if user wants to replace it
         if meeting.notes:
             context.user_data[consts.CONFIRM_STORE_NOTES] = True
             query.edit_message_text(
@@ -126,6 +173,13 @@ def edit_store_notes_msg(context, query, meeting_id):
 
 
 def get_notes_intent(update, context, intent):
+    """Handle get notes intent
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     message = update.effective_message
     datetime = intent.params["datetime"]
 
@@ -136,6 +190,12 @@ def get_notes_intent(update, context, intent):
 
 
 def get_notes_with_datetime(message, datetime):
+    """Get notes with a given meeting datetime
+
+    Args:
+        message (Message): the Telegram message object
+        datetime (Arrow): the arrow datetime
+    """
     meeting = database.get_meeting_by_time(message.chat_id, datetime)
     if meeting is None:
         message.reply_text(
@@ -149,6 +209,12 @@ def get_notes_with_datetime(message, datetime):
 
 
 def get_notes_without_datetime(message):
+    """Get notes without a given datetime, provide user
+        with a list of meetings to choose from
+
+    Args:
+        message (Message): the Telegram message object
+    """
     meetings = database.get_meetings(message.chat_id)
     keyboard = []
 
@@ -174,6 +240,12 @@ def get_notes_without_datetime(message):
 
 
 def get_notes_callback(update, context):
+    """Get meeting notes if available
+
+    Args:
+        update (Update): the Update object
+        context (Context): the Context object
+    """
     query = update.callback_query
     query.answer()
     _, meeting_id = query.data.split(",")

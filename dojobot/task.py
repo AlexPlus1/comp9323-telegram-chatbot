@@ -14,12 +14,26 @@ from dojobot import utils
 
 
 def create_task_intent(context, message, intent):
+    """Handle create task intent
+
+    Args:
+        context (Context): the Telegram context object
+        message (Message): the Telegram message object
+        intent (IntentResult): the intent result from Dialogflow
+    """
     task = Tasks(team_id=message.chat_id, status=consts.TASK_TODO)
     context.user_data[consts.CURR_TASK] = task
     ask_task_details(context.bot, message.chat_id, task)
 
 
 def ask_task_details(bot, chat_id, task):
+    """Ask for the task details to create or update a task
+
+    Args:
+        bot (Bot): the Telegram bot object
+        chat_id (int): the chat ID
+        task (Task): the Task object
+    """
     keyboard = [
         [
             InlineKeyboardButton("Name", callback_data=consts.EDIT_TASK_NAME),
@@ -45,6 +59,14 @@ def ask_task_details(bot, chat_id, task):
 
 
 def get_task_text(task):
+    """Format all the task fields into a string
+
+    Args:
+        task (Task): the Task object
+
+    Returns:
+        str: the task details
+    """
     assignee = None
     if task.user_id is not None:
         user = database.get_user(task.user_id)
@@ -58,6 +80,12 @@ def get_task_text(task):
 
 
 def ask_task_name(update, context):
+    """Ask user for the task name
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
 
@@ -71,6 +99,12 @@ def ask_task_name(update, context):
 
 
 def ask_task_summary(update, context):
+    """Ask user for the task summary
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
 
@@ -84,6 +118,12 @@ def ask_task_summary(update, context):
 
 
 def ask_task_status(update, context):
+    """Ask user for the task status
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     reply_markup = None
@@ -114,6 +154,12 @@ def ask_task_status(update, context):
 
 
 def task_status_callback(update, context):
+    """Handle user selected a task status
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     task = context.user_data.get(consts.CURR_TASK)
@@ -128,6 +174,12 @@ def task_status_callback(update, context):
 
 
 def ask_task_date(update, context):
+    """Ask user for the task due date
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
 
@@ -141,6 +193,12 @@ def ask_task_date(update, context):
 
 
 def ask_task_user(update, context):
+    """Ask user for the user to assign this task to
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     reply_markup = None
@@ -148,6 +206,8 @@ def ask_task_user(update, context):
     if context.user_data.get(consts.CURR_TASK) is not None:
         keyboard = []
         reply_markup = None
+
+        # There's only one user in private chats
         if query.message.chat.type == Chat.PRIVATE:
             from_user = query.from_user
             name = from_user.first_name
@@ -163,6 +223,8 @@ def ask_task_user(update, context):
                     )
                 ]
             )
+
+        # Get all users in the group chat
         else:
             users = database.get_users(query.message.chat.id)
             for user in users:
@@ -184,6 +246,12 @@ def ask_task_user(update, context):
 
 
 def task_user_callback(update, context):
+    """Handle user selected a user to assign the task
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     _, user_id = query.data.split(",")
@@ -198,6 +266,12 @@ def task_user_callback(update, context):
 
 
 def cancel_create_task(update, context):
+    """Cancel the create or update task workflow
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     if consts.CURR_TASK in context.user_data:
         del context.user_data[consts.CURR_TASK]
 
@@ -207,6 +281,12 @@ def cancel_create_task(update, context):
 
 
 def create_task(update, context):
+    """Create or update a task
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     task = context.user_data.get(consts.CURR_TASK)
@@ -231,14 +311,19 @@ def create_task(update, context):
             del context.user_data[consts.CURR_TASK]
 
     query.edit_message_text(text)
+
+    # Task is invalid, ask user to update its details again
     if task is not None and not is_task_created:
         ask_task_details(context.bot, query.message.chat_id, task)
+
+    # A new task is created, send through the details of the created task
     elif is_task_created:
         task_text = get_task_text(task)
         context.bot.send_message(
             query.message.chat.id, task_text, parse_mode=ParseMode.HTML
         )
 
+        # Send the task to the assignee privately
         if query.message.chat.type != Chat.PRIVATE and task.user_id is not None:
             group = context.bot.get_chat(task.team_id).title
             text = f"You've been assigned to this task in '{group}':\n\n" + task_text
@@ -248,6 +333,7 @@ def create_task(update, context):
             except Unauthorized:
                 pass
 
+    # Task has been updated to done, ask for task feedback and give suggestion
     if task is not None and is_task_done:
         if task.user_id is not None:
             ask_task_feedback(context.bot, query.message.chat.id, task)
@@ -256,6 +342,12 @@ def create_task(update, context):
 
 
 def list_tasks_intent(update, message):
+    """Handle list tasks intent
+
+    Args:
+        update (Update): the Telegram update object
+        message (Message): the Telegram message object
+    """
     tasks = database.get_tasks(message.chat_id)
     if tasks:
         reply_markup = get_tasks_keyboard(tasks)
@@ -272,6 +364,12 @@ def list_tasks_intent(update, message):
 
 
 def list_mine_tasks_intent(update, message):
+    """Handle list user assigned tasks
+
+    Args:
+        update (Update): the Telegram update object
+        message (Message): the Telegram message object
+    """
     tasks = database.get_tasks_by_user(message.chat.id, message.from_user.id)
     if tasks:
         reply_markup = get_tasks_keyboard(tasks)
@@ -288,6 +386,11 @@ def list_mine_tasks_intent(update, message):
 
 
 def update_task_intent(message):
+    """Handle update task intent
+
+    Args:
+        message (Message): the Telegram message object
+    """
     tasks = database.get_tasks(message.chat.id)
     if tasks:
         reply_markup = get_tasks_keyboard(tasks)
@@ -299,6 +402,12 @@ def update_task_intent(message):
 
 
 def update_task_callback(update, context):
+    """User has selected a task to update, ask for the new task details
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     _, task_id = query.data.split(",")
@@ -313,6 +422,13 @@ def update_task_callback(update, context):
 
 
 def ask_task_feedback(bot, chat_id, task):
+    """Ask users to provide feedback on a completed task
+
+    Args:
+        bot (Bot): the Telegram bot object
+        chat_id (int): the chat ID
+        task (Task): the Task object
+    """
     keyboard = []
     for feeback_type, emoji in consts.FEEDBACK_TYPES.items():
         keyboard.append(
@@ -331,6 +447,12 @@ def ask_task_feedback(bot, chat_id, task):
 
 
 def task_feedback_callback(update, context):
+    """Handle user providing task feedback
+
+    Args:
+        update (Update): the Telegram update object
+        context (Context): the Telegram context object
+    """
     query = update.callback_query
     query.answer()
     _, task_id, user_feedback = query.data.split(",")
@@ -356,9 +478,17 @@ def task_feedback_callback(update, context):
 
 
 def task_done_suggest(bot, chat_id, user_id):
+    """Suggest user for next steps after task completion
+
+    Args:
+        bot (Bot): the Telegram bot object
+        chat_id (int): the chat ID
+        user_id (int): the user ID
+    """
     reply_markup = None
     tasks = database.get_tasks_by_user(chat_id, user_id, status=consts.TASK_TODO)
 
+    # Check for to-do tasks assigned to the user
     if tasks:
         text = (
             "Here are the To-Do tasks assigned to you, consider to "
@@ -366,6 +496,7 @@ def task_done_suggest(bot, chat_id, user_id):
         )
         reply_markup = get_tasks_keyboard(tasks)
     else:
+        # Check for to-do tasks for the team
         tasks = database.get_tasks(chat_id, status=consts.TASK_TODO)
         if tasks:
             text = (
@@ -384,6 +515,14 @@ def task_done_suggest(bot, chat_id, user_id):
 
 
 def get_tasks_keyboard(tasks):
+    """Get the tasks keyboard
+
+    Args:
+        tasks (list): the list of tasks
+
+    Returns:
+        InlineKeyboardMarkup: the tasks keyboard
+    """
     keyboard = []
     for task in tasks:
         keyboard.append(
