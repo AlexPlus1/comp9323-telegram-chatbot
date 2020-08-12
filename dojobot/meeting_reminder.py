@@ -25,11 +25,19 @@ def change_reminder_intent(message, intent):
                 button = "Turn on"
 
             keyboard = [
-                [InlineKeyboardButton(button, callback_data=f"cr{meeting.meeting_id}")]
+                [
+                    InlineKeyboardButton(
+                        button,
+                        callback_data=f"{consts.CHANGE_REMIND},{meeting.meeting_id}",
+                    )
+                ]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             message.reply_text(
-                text=f"Reminder is currently <b>turned {status}</b>",
+                text=(
+                    f"Reminder is currently <b>turned {status}</b> for "
+                    f"the meeting on <b>{meeting.formatted_datetime()}</b>"
+                ),
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML,
             )
@@ -49,17 +57,24 @@ def change_remind(update, context):
     _, meeting_id = query.data.split(",")
     chat_id = query.message.chat.id
     query.answer()
-    check = database.reminder_state(meeting_id)
+    meeting = database.get_meeting_by_id(meeting_id)
 
-    if check:
-        temp_text = "You've turned off the reminder!"
-        database.cancel_remind(meeting_id, chat_id)
+    if meeting is not None:
+        if meeting.has_reminder:
+            status = "off"
+            database.cancel_remind(meeting_id, chat_id)
+        else:
+            status = "on"
+            database.set_remind(meeting_id, chat_id)
+
+        text = (
+            f"You've <b>turned {status}</b> the reminder for "
+            f"the meeting on <b>{meeting.formatted_datetime()}</b>"
+        )
     else:
-        temp_text = "You've turned on the reminder!"
-        database.set_remind(meeting_id, chat_id)
+        text = "Invalid meeting, please try again."
 
-    query.edit_message_text(text=temp_text)
-    return ConversationHandler.END
+    query.edit_message_text(text=text, parse_mode=ParseMode.HTML)
 
 
 def cancel_del(update, context):
@@ -111,33 +126,34 @@ def remind_main_menu_keyboard(chat_id):
 def remind_first_menu(update, context):
     query = update.callback_query
     query.answer()
-    temp = query.data[2:]
-    check = database.reminder_state(temp)
+    meeting_id = query.data[2:]
+    meeting = database.get_meeting_by_id(meeting_id)
 
-    if check:
-        status = "on"
+    if meeting is not None:
+        if meeting.has_reminder:
+            status = "on"
+        else:
+            status = "off"
+
+        query.edit_message_text(
+            text=(
+                f"Reminder is currently <b>turned {status}</b> for "
+                f"the meeting on <b>{meeting.formatted_datetime()}</b>"
+            ),
+            reply_markup=remind_first_menu_keyboard(meeting_id, meeting.has_reminder),
+            parse_mode=ParseMode.HTML,
+        )
     else:
-        status = "off"
-    query.edit_message_text(
-        text=f"Reminder is currently <b>turned {status}</b>",
-        reply_markup=remind_first_menu_keyboard(temp, check),
-        parse_mode=ParseMode.HTML,
-    )
+        query.edit_message_text("Invalid meeting, please try again.")
 
 
-def remind_first_menu_keyboard(temp, check):
+def remind_first_menu_keyboard(meeting_id, check):
     keyboard = [InlineKeyboardButton("Go back", callback_data="remind_main")]
+    callback_data = f"{consts.CHANGE_REMIND},{meeting_id}"
+
     if check:
-        keyboard.append(
-            InlineKeyboardButton(
-                "Turn off", callback_data=f"{consts.CHANGE_REMIND},{temp}"
-            )
-        )
+        keyboard.append(InlineKeyboardButton("Turn off", callback_data=callback_data))
     else:
-        keyboard.append(
-            InlineKeyboardButton(
-                "Turn on", callback_data=f"{consts.CHANGE_REMIND},{temp}"
-            )
-        )
+        keyboard.append(InlineKeyboardButton("Turn on", callback_data=callback_data))
 
     return InlineKeyboardMarkup([keyboard])

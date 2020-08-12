@@ -207,12 +207,6 @@ class Database(object):
             meeting.notes = file_id
             session.commit()
 
-    def reminder_state(self, meating_id):
-        session = DB_Session()
-        info = session.query(Meetings).filter(Meetings.meeting_id == meating_id).first()
-
-        return info.has_reminder
-
     def commit(self):
         session = DB_Session()
         session.commit()
