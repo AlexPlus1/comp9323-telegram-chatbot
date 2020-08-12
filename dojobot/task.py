@@ -4,6 +4,7 @@ from telegram import (
     ParseMode,
     Chat,
 )
+from telegram.error import Unauthorized
 
 import consts
 
@@ -241,7 +242,11 @@ def create_task(update, context):
         if query.message.chat.type != Chat.PRIVATE and task.user_id is not None:
             group = context.bot.get_chat(task.team_id).title
             text = f"You've been assigned to this task in '{group}':\n\n" + task_text
-            context.bot.send_message(task.user_id, text, parse_mode=ParseMode.HTML)
+
+            try:
+                context.bot.send_message(task.user_id, text, parse_mode=ParseMode.HTML)
+            except Unauthorized:
+                pass
 
     if task is not None and is_task_done:
         if task.user_id is not None:
