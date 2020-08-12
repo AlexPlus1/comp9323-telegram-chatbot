@@ -198,8 +198,8 @@ def help_msg(update, context):
         text += get_grp_help_msg(context)
 
     keyboard = [
-        [KeyboardButton("Schedule meeting"), KeyboardButton("List meetings")],
-        [KeyboardButton("Store notes"), KeyboardButton("Retrieve notes")],
+        [KeyboardButton("Schedule meeting"), KeyboardButton("Create poll")],
+        [KeyboardButton("Store agenda"), KeyboardButton("Store notes")],
         [KeyboardButton("Create task"), KeyboardButton("List tasks")],
     ]
     reply_markup = ReplyKeyboardMarkup(
