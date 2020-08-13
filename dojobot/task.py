@@ -290,7 +290,7 @@ def create_task(update, context):
     query = update.callback_query
     query.answer()
     task = context.user_data.get(consts.CURR_TASK)
-    is_task_created = is_task_done = False
+    is_task_created = is_task_updated = is_task_done = False
 
     if task is None:
         text = "Invalid task, please try again."
@@ -299,46 +299,54 @@ def create_task(update, context):
             text = "Task name is required, please set the task name."
         else:
             if task.task_id is None:
+                is_task_created = True
                 operation = "created"
                 database.insert(task)
             else:
+                is_task_updated = True
                 operation = "updated"
                 task = database.set_task(task.task_id, task)
 
-            is_task_created = True
             is_task_done = task.status == consts.TASK_DONE
             text = f"I've {operation} the following task."
             del context.user_data[consts.CURR_TASK]
 
     query.edit_message_text(text)
 
-    # Task is invalid, ask user to update its details again
-    if task is not None and not is_task_created:
-        ask_task_details(context.bot, query.message.chat_id, task)
+    if task is not None:
+        # Task is invalid, ask user to update its details again
+        if not is_task_created and not is_task_updated:
+            ask_task_details(context.bot, query.message.chat_id, task)
+        else:
+            task_text = get_task_text(task)
+            context.bot.send_message(
+                query.message.chat.id, task_text, parse_mode=ParseMode.HTML
+            )
 
-    # A new task is created, send through the details of the created task
-    elif is_task_created:
-        task_text = get_task_text(task)
-        context.bot.send_message(
-            query.message.chat.id, task_text, parse_mode=ParseMode.HTML
-        )
+            # Send the created task to the assignee privately
+            if (
+                is_task_created
+                and query.message.chat.type != Chat.PRIVATE
+                and task.user_id is not None
+            ):
+                group = context.bot.get_chat(task.team_id).title
+                text = (
+                    f"You've been assigned to this task in '{group}':\n\n" + task_text
+                )
 
-        # Send the task to the assignee privately
-        if query.message.chat.type != Chat.PRIVATE and task.user_id is not None:
-            group = context.bot.get_chat(task.team_id).title
-            text = f"You've been assigned to this task in '{group}':\n\n" + task_text
+                try:
+                    context.bot.send_message(
+                        task.user_id, text, parse_mode=ParseMode.HTML
+                    )
+                except Unauthorized:
+                    pass
 
-            try:
-                context.bot.send_message(task.user_id, text, parse_mode=ParseMode.HTML)
-            except Unauthorized:
-                pass
+        # Task has been updated to done, ask for task feedback and give suggestion
+        if is_task_done:
+            if task.user_id is not None:
+                ask_task_feedback(context.bot, query.message.chat.id, task)
 
-    # Task has been updated to done, ask for task feedback and give suggestion
-    if task is not None and is_task_done:
-        if task.user_id is not None:
-            ask_task_feedback(context.bot, query.message.chat.id, task)
-
-        task_done_suggest(context.bot, query.message.chat.id, query.from_user.id)
+            task_done_suggest(context.bot, query.message.chat.id, query.from_user.id)
 
 
 def list_tasks_intent(update, message):
@@ -441,8 +449,9 @@ def ask_task_feedback(bot, chat_id, task):
     reply_markup = InlineKeyboardMarkup([keyboard])
     bot.send_message(
         chat_id,
-        text=(f"{task.user.name} has completed {task.name}, Great job!"),
+        text=(f"{task.user.name} has completed <b>{task.name}</b>, Great job!"),
         reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML,
     )
 
 
