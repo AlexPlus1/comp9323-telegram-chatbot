@@ -202,8 +202,9 @@ def ask_task_user(update, context):
     query = update.callback_query
     query.answer()
     reply_markup = None
+    task = context.user_data.get(consts.CURR_TASK)
 
-    if context.user_data.get(consts.CURR_TASK) is not None:
+    if task is not None:
         keyboard = []
         reply_markup = None
 
@@ -219,7 +220,7 @@ def ask_task_user(update, context):
                 [
                     InlineKeyboardButton(
                         name,
-                        callback_data=(f"{consts.SET_TASK_USER},{query.from_user.id}"),
+                        callback_data=f"{consts.SET_TASK_USER},{query.from_user.id}",
                     )
                 ]
             )
@@ -232,13 +233,24 @@ def ask_task_user(update, context):
                     [
                         InlineKeyboardButton(
                             user.name,
-                            callback_data=(f"{consts.SET_TASK_USER},{user.user_id}"),
+                            callback_data=f"{consts.SET_TASK_USER},{user.user_id}",
                         )
                     ]
                 )
 
+        # If task has been assigned, add option to remove assignee
+        if task.user_id is not None:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        "Remove Assignee",
+                        callback_data=f"{consts.SET_TASK_USER},remove",
+                    )
+                ]
+            )
+
         reply_markup = InlineKeyboardMarkup(keyboard)
-        text = "Please select the assignee."
+        text = "Please select the task assignee."
     else:
         text = "Invalid task, please try again."
 
@@ -257,7 +269,11 @@ def task_user_callback(update, context):
     _, user_id = query.data.split(",")
     task = context.user_data.get(consts.CURR_TASK)
 
+    if user_id == "remove":
+        user_id = None
+
     if task is not None:
+        context.user_data[consts.ASSIGNEE_CHANGE] = task.user_id != user_id
         task.user_id = user_id
         context.bot.delete_message(query.message.chat.id, query.message.message_id)
         ask_task_details(context.bot, query.message.chat_id, task)
@@ -290,7 +306,7 @@ def create_task(update, context):
     query = update.callback_query
     query.answer()
     task = context.user_data.get(consts.CURR_TASK)
-    is_task_created = is_task_updated = is_task_done = False
+    is_task_created = is_task_updated = is_assignee_changed = is_task_done = False
 
     if task is None:
         text = "Invalid task, please try again."
@@ -306,6 +322,10 @@ def create_task(update, context):
                 is_task_updated = True
                 operation = "updated"
                 task = database.set_task(task.task_id, task)
+
+            if consts.ASSIGNEE_CHANGE in context.user_data:
+                is_assignee_changed = context.user_data[consts.ASSIGNEE_CHANGE]
+                del context.user_data[consts.ASSIGNEE_CHANGE]
 
             is_task_done = task.status == consts.TASK_DONE
             text = f"I've {operation} the following task."
@@ -325,7 +345,7 @@ def create_task(update, context):
 
             # Send the created task to the assignee privately
             if (
-                is_task_created
+                (is_task_created or is_assignee_changed)
                 and query.message.chat.type != Chat.PRIVATE
                 and task.user_id is not None
             ):

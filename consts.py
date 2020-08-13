@@ -34,6 +34,7 @@ TASK_TODO = "To-Do"
 TASK_DOING = "Doing"
 TASK_DONE = "Done"
 TASK_FEEDBACK = "task_feedback"
+ASSIGNEE_CHANGE = "assignee_change"
 
 THUMBSUP = 0
 SMILE = 1
